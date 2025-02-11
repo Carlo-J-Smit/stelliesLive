@@ -24,29 +24,118 @@ const product = [
         date: 'Tuesday'
     },
     {
-        id: 1,
-        image: 'image/',
-        title: 'Soccer',
-        category: 'Live Sport',
-        venue: 'Bohemia',
-        date: 'Monday'
+        id: 2,
+        image: 'image/karaoke.png',
+        title: 'Sing a long',
+        category: 'Karaoke',
+        venue: 'Aandklas',
+        date: 'Tuesday'
     },
     {
-        id: 2,
-        image: 'image/Karel_and_Pikkie.png',
-        title: '3',
+        id: 9,
+        image: 'image/karaoke.png',
+        title: 'Sing a long',
         category: 'Karaoke',
         venue: 'Aandklas',
         date: 'Wednesday'
     },
     {
-        id: 3,
-        image: 'image/Karel_and_Pikkie.png',
-        title: '4',
-        category: 'Live Music',
+        id: 1,
+        image: 'image/premierLeague.png',
+        title: 'Everton vs Liverpool',
+        category: 'Live Sport',
         venue: 'Bohemia',
         date: '2025-02-12'
     },
+    {
+        id: 3,
+        image: 'image/bingo.png',
+        title: 'Bingo',
+        category: 'Games',
+        venue: 'Bohemia',
+        date: 'Sunday'
+    },
+    {
+        id: 4,
+        image: 'image/premierLeague.png',
+        title: 'Brighton vs Chelsea',
+        category: 'Live Sport',
+        venue: 'Bohemia',
+        date: '2025-02-14'
+    },
+    {
+        id: 5,
+        image: 'image/premierLeague.png',
+        title: 'Leicester City vs Arsenal',
+        category: 'Live Sport',
+        venue: 'Bohemia',
+        date: '2025-02-15'
+    },
+    {
+        id: 6,
+        image: 'image/premierLeague.png',
+        title: 'Manchester City vs NewCastle',
+        category: 'Live Sport',
+        venue: 'Bohemia',
+        date: '2025-02-15'
+    },
+    {
+        id: 14,
+        image: 'image/PHFAT.png',
+        title: 'PHFAT',
+        category: 'Live Music',
+        venue: 'Aandklas',
+        date: '2025-02-15'
+    },
+    {
+        id: 7,
+        image: 'image/premierLeague.png',
+        title: 'liverpool vs Wolves',
+        category: 'Live Sport',
+        venue: 'Bohemia',
+        date: '2025-02-16'
+    },
+    {
+        id: 8,
+        image: 'image/premierLeague.png',
+        title: 'Manchester United vs Tottenham Spur',
+        category: 'Live Sport',
+        venue: 'Bohemia',
+        date: '2025-02-16'
+    },
+    {
+        id: 12,
+        image: 'image/JackalAndTheWind.png',
+        title: 'Jackal and the Wind',
+        category: 'Live Music',
+        venue: 'Aandklas',
+        date: '2025-02-22'
+    },
+    {
+        id: 13,
+        image: 'image/DesmondAndTheTutus.png',
+        title: 'Desmond and the Tutus',
+        category: 'Live Music',
+        venue: 'Aandklas',
+        date: '2025-03-01'
+    },
+    {
+        id: 10,
+        image: 'image/YoungDrunkAndFullOfSpunk.png',
+        title: 'Young, Drunk and full of S-punk',
+        category: 'Live Music',
+        venue: 'Aandklas',
+        date: '2025-03-15'
+    },
+    {
+        id: 11,
+        image: 'image/BassonLaubscher.png',
+        title: 'Basson Laubscher & the Violent Free Peace',
+        category: 'Live Music',
+        venue: 'Aandklas',
+        date: '2025-03-29'
+    },
+   
     
     
     
