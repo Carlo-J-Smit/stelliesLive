@@ -59,7 +59,7 @@ class HeroEventCard extends StatelessWidget {
                         color: Color.fromARGB(255, 243, 49, 49),
                         fontSize: 14,
                         letterSpacing: 2,
-                        
+
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -74,10 +74,22 @@ class HeroEventCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      "${event.venue} • ${_formatDateTime(event.dateTime)}",
-                      style: const TextStyle(color: Colors.white70),
+                      '${event.venue} @ ${TimeOfDay.fromDateTime(event.dateTime).format(context)}',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
                     ),
+
                     const SizedBox(height: 16),
+                    // Text(
+                    //     event.recurring == true
+                    //         ? (event.dayOfWeek?[0].toUpperCase() ?? '') +
+                    //             (event.dayOfWeek?.substring(1) ?? '')
+                    //         : _formatDateTime(event.dateTime),
+                    //     style: const TextStyle(color: Colors.white),
+                    //   ),
+                    // const SizedBox(height: 16),
                   ],
                 ),
               ),

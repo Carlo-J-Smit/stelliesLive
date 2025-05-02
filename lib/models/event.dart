@@ -8,6 +8,8 @@ class Event {
   final DateTime dateTime;
   final String? imageUrl;
   final String category;
+  final bool? recurring;
+  final String? dayOfWeek;
 
   Event({
     required this.id,
@@ -16,6 +18,8 @@ class Event {
     required this.venue,
     required this.dateTime,
     required this.category,
+    this.recurring,
+    this.dayOfWeek,
     this.imageUrl,
   });
 
@@ -28,6 +32,8 @@ class Event {
       dateTime: (data['dateTime'] as Timestamp).toDate(),
       imageUrl: data['imageUrl'],
       category: data['category'] ?? '',
+      recurring: data['recurring'] is bool ? data['recurring'] : null,
+      dayOfWeek: data['dayOfWeek'],
     );
   }
 }

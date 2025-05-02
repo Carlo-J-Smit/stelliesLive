@@ -55,14 +55,26 @@ class _EventCardState extends State<EventCard> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(event.title,
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      Text(
+                        event.title,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
                       const SizedBox(height: 4),
                       if (event.venue.isNotEmpty)
-                        Text(event.venue, style: const TextStyle(color: Colors.grey)),
+                        Text(
+                          event.venue,
+                          style: const TextStyle(color: Colors.grey),
+                        ),
                       const SizedBox(height: 2),
-                      Text(_formatDateTime(event.dateTime),
-                          style: const TextStyle(color: Colors.grey)),
+                      Text(
+                        event.recurring == true
+                            ? '${event.dayOfWeek![0].toUpperCase()}${event.dayOfWeek!.substring(1)} @ ${TimeOfDay.fromDateTime(event.dateTime).format(context)}'
+                            : _formatDateTime(event.dateTime),
+                        style: const TextStyle(color: Colors.grey),
+                      ),
                     ],
                   ),
                 ),
@@ -74,7 +86,9 @@ class _EventCardState extends State<EventCard> {
             ),
 
             // 📖 Expandable content
-            if (_isExpanded && event.description != null && event.description!.isNotEmpty) ...[
+            if (_isExpanded &&
+                event.description != null &&
+                event.description!.isNotEmpty) ...[
               const SizedBox(height: 12),
               Text(
                 event.description!,

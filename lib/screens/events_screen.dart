@@ -6,7 +6,6 @@ import '../widgets/nav_bar.dart';
 import '../widgets/sidebar.dart';
 import '../widgets/today_event_rotator.dart';
 
-
 class EventsScreen extends StatefulWidget {
   const EventsScreen({super.key});
 
@@ -75,41 +74,70 @@ class _EventsScreenState extends State<EventsScreen> {
                     child: FutureBuilder<List<Event>>(
                       future: _eventsFuture,
                       builder: (context, snapshot) {
-                        if (snapshot.connectionState == ConnectionState.waiting) {
-                          return const Center(child: CircularProgressIndicator());
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return const Center(
+                            child: CircularProgressIndicator(),
+                          );
                         } else if (snapshot.hasError) {
-                          return Center(child: Text('Error: ${snapshot.error}'));
+                          return Center(
+                            child: Text('Error: ${snapshot.error}'),
+                          );
                         } else if (_filteredEvents.isEmpty) {
-                          return const Center(child: Text('No events match your search.'));
+                          return const Center(
+                            child: Text('No events match your search.'),
+                          );
                         }
 
                         final now = DateTime.now();
-                        final todayEvents = _filteredEvents.where((event) {
-                          return event.dateTime.year == now.year &&
-                                event.dateTime.month == now.month &&
-                                event.dateTime.day == now.day;
-                        }).toList();
+                        final today =
+                            [
+                              'monday',
+                              'tuesday',
+                              'wednesday',
+                              'thursday',
+                              'friday',
+                              'saturday',
+                              'sunday',
+                            ][DateTime.now().weekday - 1];
+
+                        final todayEvents =
+                            _filteredEvents.where((event) {
+                              if (event.recurring == true &&
+                                  event.dayOfWeek == today)
+                                return true;
+                              if (event.dateTime != null) {
+                                return event.dateTime.year == now.year &&
+                                    event.dateTime.month == now.month &&
+                                    event.dateTime.day == now.day;
+                              }
+                              return false;
+                            }).toList();
 
                         return ListView(
                           children: [
-                            
                             if (todayEvents.isNotEmpty)
                               TodayEventRotator(events: todayEvents),
                             const SizedBox(height: 20),
 
                             const Text(
                               'All Events',
-                              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                             const SizedBox(height: 10),
 
-                            ..._filteredEvents.map((event) => EventCard(event: event)),
+                            ..._filteredEvents.map(
+                              (event) => EventCard(event: event),
+                            ),
                           ],
                         );
                       },
                     ),
                   ),
-                )
+                ),
               ],
             ),
           ),
