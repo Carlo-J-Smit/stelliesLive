@@ -1,0 +1,36 @@
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "stellieslive",
+          "appId": "1:631816371158:android:ae50bb2656c3bb2c37c277",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "stellieslive",
+          "configurations": {
+            "android": "1:631816371158:android:ae50bb2656c3bb2c37c277",
+            "web": "1:631816371158:web:ea073d4e383c7bbd37c277"
+          }
+        }
+      }
+    }
+  },
+  "hosting": {
+    "public": "build/web",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
+  }
+}

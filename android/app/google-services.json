@@ -1,0 +1,68 @@
+{
+  "project_info": {
+    "project_number": "631816371158",
+    "project_id": "stellieslive",
+    "storage_bucket": "stellieslive.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:631816371158:android:ae50bb2656c3bb2c37c277",
+        "android_client_info": {
+          "package_name": "com.example.stellieslive.stellieslive"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "631816371158-dincssh5bf44i33rfpc4o938t98daog1.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBS__rzXw2PVsS-RSPgXBNxLmA1XixXV0A"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "631816371158-dincssh5bf44i33rfpc4o938t98daog1.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:631816371158:android:98298006f574468137c277",
+        "android_client_info": {
+          "package_name": "com.stellieslive.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "631816371158-dincssh5bf44i33rfpc4o938t98daog1.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBS__rzXw2PVsS-RSPgXBNxLmA1XixXV0A"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "631816371158-dincssh5bf44i33rfpc4o938t98daog1.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
