@@ -213,7 +213,7 @@ class _NavbarState extends State<Navbar> {
     double topPadding = 20; // default
     if (!kIsWeb && Platform.isAndroid) {
       // Add system status bar height + extra spacing for Android
-      topPadding = MediaQuery.of(context).padding.top + 20;
+      topPadding = MediaQuery.of(context).padding.top + 15;
     }
     return LayoutBuilder(
       builder: (context, constraints) {
