@@ -1,24 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../constants/colors.dart';
 import '../screens/landing_page.dart';
 import '../screens/events_screen.dart';
 import '../screens/study_screen.dart';
 import '../screens/auth_screen.dart';
 import '../screens/admin_page.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'dart:async';
 
-Future<String?> getUserRole() async {
-  final user = FirebaseAuth.instance.currentUser;
-  if (user == null) return null;
-
-  final doc =
-      await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
-  if (!doc.exists) return null;
-
-  return doc.data()?['role'];
-}
 
 class Navbar extends StatefulWidget {
   const Navbar({super.key});
@@ -30,85 +20,62 @@ class Navbar extends StatefulWidget {
 class _NavbarState extends State<Navbar> {
   User? _user;
   String? _role;
+  late final StreamSubscription<User?> _authSub;
 
   @override
   void initState() {
     super.initState();
-    _loadUser();
+    _authSub = FirebaseAuth.instance.authStateChanges().listen(_onAuthChanged);
   }
 
-  Future<void> _loadUser() async {
-    FirebaseAuth.instance.authStateChanges().listen((user) async {
-      if (user != null) {
-        print('[NAVBAR] Logged in as: ${user.email}');
+  Future<void> _onAuthChanged(User? user) async {
+    if (!mounted) return;
 
-        final doc =
-            await FirebaseFirestore.instance
-                .collection('users')
-                .doc(user.uid)
-                .get();
-
-        if (doc.exists) {
-          final role = doc.data()?['role'];
-          print('[NAVBAR] Role from Firestore: $role');
-
-          setState(() {
-            _user = user;
-            _role = role;
-          });
-        } else {
-          print('[NAVBAR] No user document found in Firestore.');
-          setState(() {
-            _user = user;
-            _role = null;
-          });
-        }
-      } else {
-        print('[NAVBAR] No user logged in.');
+    if (user == null) {
+      if (mounted) {
         setState(() {
           _user = null;
           _role = null;
         });
       }
-    });
+      return;
+    }
+
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+
+      if (!mounted) return;
+      setState(() {
+        _user = user;
+        _role = doc.data()?['role'];
+      });
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _user = user;
+          _role = null;
+        });
+      }
+    }
   }
 
   @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final isNarrow = constraints.maxWidth < 700;
-
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          height: 60,
-          width: double.infinity,
-          color: AppColors.primaryRed,
-          child:
-              isNarrow ? _buildMobileNav(context) : _buildDesktopNav(context),
-        );
-      },
-    );
+  void dispose() {
+    _authSub.cancel();
+    super.dispose();
   }
 
-  Widget _navButton(
-    bool isAdmin,
-    BuildContext context,
-    String label,
-    Widget page, {
-    Color color = AppColors.textLight,
-  }) {
+  void _logout() async {
+    await FirebaseAuth.instance.signOut();
+  }
+
+  Widget _navButton(BuildContext context, String label, VoidCallback onTap,
+      {Color color = AppColors.textLight}) {
     return TextButton(
-      onPressed: () {
-        if (isAdmin) {
-          Navigator.push(context, MaterialPageRoute(builder: (_) => page));
-        } else {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (_) => page),
-          );
-        }
-      },
+      onPressed: onTap,
       child: Text(label, style: TextStyle(color: color)),
     );
   }
@@ -127,17 +94,43 @@ class _NavbarState extends State<Navbar> {
           ),
         ),
         const Spacer(),
-        _navButton(isAdmin, context, 'Home', const LandingPage()),
-        _navButton(isAdmin, context, 'Events', const EventsScreen()),
-        _navButton(isAdmin, context, 'Study & Tutors', const StudyScreen()),
+        _navButton(context, 'Home', () {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const LandingPage()),
+          );
+        }),
+        _navButton(context, 'Events', () {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const EventsScreen()),
+          );
+        }),
+        _navButton(context, 'Study & Tutors', () {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const StudyScreen()),
+          );
+        }),
         if (_user == null)
-          _navButton(isAdmin, context, 'Login', const AuthScreen()),
+          _navButton(context, 'Login', () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const AuthScreen()),
+            );
+          }),
+        if (_user != null)
+          _navButton(context, 'Logout', _logout),
         if (isAdmin)
           _navButton(
-            isAdmin,
             context,
             'Admin',
-            const AdminPage(),
+            () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const AdminPage()),
+              );
+            },
             color: Colors.yellow,
           ),
       ],
@@ -145,6 +138,8 @@ class _NavbarState extends State<Navbar> {
   }
 
   Widget _buildMobileNav(BuildContext context) {
+    final isAdmin = _role == 'admin';
+
     return Row(
       children: [
         const Text(
@@ -184,6 +179,9 @@ class _NavbarState extends State<Navbar> {
                   MaterialPageRoute(builder: (_) => const AuthScreen()),
                 );
                 break;
+              case 'Logout':
+                _logout();
+                break;
               case 'Admin':
                 Navigator.push(
                   context,
@@ -192,21 +190,38 @@ class _NavbarState extends State<Navbar> {
                 break;
             }
           },
-          itemBuilder:
-              (context) => [
-                const PopupMenuItem(value: 'Home', child: Text('Home')),
-                const PopupMenuItem(value: 'Events', child: Text('Events')),
-                const PopupMenuItem(
-                  value: 'Study',
-                  child: Text('Study & Tutors'),
-                ),
-                if (_user == null)
-                  const PopupMenuItem(value: 'Login', child: Text('Login')),
-                if (_role == 'admin')
-                  const PopupMenuItem(value: 'Admin', child: Text('Admin')),
-              ],
+          itemBuilder: (context) => [
+            const PopupMenuItem(value: 'Home', child: Text('Home')),
+            const PopupMenuItem(value: 'Events', child: Text('Events')),
+            const PopupMenuItem(value: 'Study', child: Text('Study & Tutors')),
+            if (_user == null)
+              const PopupMenuItem(value: 'Login', child: Text('Login')),
+            if (_user != null)
+              const PopupMenuItem(value: 'Logout', child: Text('Logout')),
+            if (isAdmin)
+              const PopupMenuItem(value: 'Admin', child: Text('Admin')),
+          ],
         ),
       ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isNarrow = constraints.maxWidth < 700;
+
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          height: 60,
+          width: double.infinity,
+          color: AppColors.primaryRed,
+          child: isNarrow
+              ? _buildMobileNav(context)
+              : _buildDesktopNav(context),
+        );
+      },
     );
   }
 }
