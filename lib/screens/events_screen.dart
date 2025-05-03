@@ -47,102 +47,157 @@ class _EventsScreenState extends State<EventsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Column(
-        children: [
-          // Sidebar on the left
-          const Navbar(),
-
-          // Main content
-          Expanded(
-            child: Row(
-              children: [
-                Sidebar(
-                  onSearchChanged: (query) {
-                    _searchQuery = query;
-                    _applyFilters();
-                  },
-                  onFilterChanged: (filter) {
-                    _filterType = filter ?? 'All';
-                    _applyFilters();
-                  },
-                ),
-                const SizedBox(height: 20),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: FutureBuilder<List<Event>>(
-                      future: _eventsFuture,
-                      builder: (context, snapshot) {
-                        if (snapshot.connectionState ==
-                            ConnectionState.waiting) {
-                          return const Center(
-                            child: CircularProgressIndicator(),
-                          );
-                        } else if (snapshot.hasError) {
-                          return Center(
-                            child: Text('Error: ${snapshot.error}'),
-                          );
-                        } else if (_filteredEvents.isEmpty) {
-                          return const Center(
-                            child: Text('No events match your search.'),
-                          );
-                        }
-
-                        final now = DateTime.now();
-                        final today =
-                            [
-                              'monday',
-                              'tuesday',
-                              'wednesday',
-                              'thursday',
-                              'friday',
-                              'saturday',
-                              'sunday',
-                            ][DateTime.now().weekday - 1];
-
-                        final todayEvents =
-                            _filteredEvents.where((event) {
-                              if (event.recurring == true &&
-                                  event.dayOfWeek == today)
-                                return true;
-                              if (event.dateTime != null) {
-                                return event.dateTime.year == now.year &&
-                                    event.dateTime.month == now.month &&
-                                    event.dateTime.day == now.day;
-                              }
-                              return false;
-                            }).toList();
-
-                        return ListView(
-                          children: [
-                            if (todayEvents.isNotEmpty)
-                              TodayEventRotator(events: todayEvents),
-                            const SizedBox(height: 20),
-
-                            const Text(
-                              'All Events',
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-
-                            ..._filteredEvents.map(
-                              (event) => EventCard(event: event),
-                            ),
-                          ],
-                        );
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isNarrow = constraints.maxWidth < 700;
+        //const Navbar(),
+        return Scaffold(
+          // appBar:
+          //     isNarrow
+          //         ? AppBar(
+          //           title: const Text('Events'),
+          //           leading: Builder(
+          //             builder:
+          //                 (context) => IconButton(
+          //                   icon: const Icon(Icons.menu),
+          //                   onPressed: () => Scaffold.of(context).openDrawer(),
+          //                 ),
+          //           ),
+          //         )
+          //         : null,
+          drawer:
+              isNarrow
+                  ? Drawer(
+                    child: Sidebar(
+                      onSearchChanged: (query) {
+                        _searchQuery = query;
+                        _applyFilters();
                       },
+                      onFilterChanged: (filter) {
+                        _filterType = filter ?? 'All';
+                        _applyFilters();
+                      },
+                      onClose: () => Navigator.of(context).pop(),
                     ),
-                  ),
+                  )
+                  : null,
+
+          body: Column(
+            children: [
+              // if (!isNarrow)
+              const Navbar(),
+
+              Expanded(
+                child: Row(
+                  children: [
+                    if (!isNarrow)
+                      Sidebar(
+                        onSearchChanged: (query) {
+                          _searchQuery = query;
+                          _applyFilters();
+                        },
+                        onFilterChanged: (filter) {
+                          _filterType = filter ?? 'All';
+                          _applyFilters();
+                        },
+                      ),
+                    Expanded(
+                      // child: Padding(
+                      //   padding: const EdgeInsets.all(16),
+                      child: FutureBuilder<List<Event>>(
+                        future: _eventsFuture,
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting) {
+                            return const Center(
+                              child: CircularProgressIndicator(),
+                            );
+                          } else if (snapshot.hasError) {
+                            return Center(
+                              child: Text('Error: ${snapshot.error}'),
+                            );
+                          } else if (_filteredEvents.isEmpty) {
+                            return const Center(
+                              child: Text('No events match your search.'),
+                            );
+                          }
+
+                          final now = DateTime.now();
+                          final today =
+                              [
+                                'monday',
+                                'tuesday',
+                                'wednesday',
+                                'thursday',
+                                'friday',
+                                'saturday',
+                                'sunday',
+                              ][now.weekday - 1];
+
+                          final todayEvents =
+                              _filteredEvents.where((event) {
+                                if (event.recurring == true &&
+                                    event.dayOfWeek == today)
+                                  return true;
+                                if (event.dateTime != null) {
+                                  return event.dateTime.year == now.year &&
+                                      event.dateTime.month == now.month &&
+                                      event.dateTime.day == now.day;
+                                }
+                                return false;
+                              }).toList();
+
+                          return ListView(
+                            padding:
+                                isNarrow
+                                    ? const EdgeInsets.only(bottom: 16)
+                                    : const EdgeInsets.all(16),
+                            children: [
+                              if (todayEvents.isNotEmpty)
+                                TodayEventRotator(events: todayEvents),
+                              const SizedBox(height: 20),
+
+                              Builder(
+                                builder:
+                                    (context) => Row(
+                                      children: [
+                                        if (isNarrow)
+                                          IconButton(
+                                            icon: const Icon(Icons.tune),
+                                            onPressed:
+                                                () =>
+                                                    Scaffold.of(
+                                                      context,
+                                                    ).openDrawer(),
+                                          ),
+                                        const Text(
+                                          'All Events',
+                                          style: TextStyle(
+                                            fontSize: 20,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                              ),
+
+                              const SizedBox(height: 10),
+                              ..._filteredEvents.map(
+                                (event) => EventCard(event: event),
+                              ),
+                            ],
+                          );
+                        },
+                      ),
+                    ),
+                    //),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
