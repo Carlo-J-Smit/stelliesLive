@@ -8,6 +8,8 @@ import '../screens/study_screen.dart';
 import '../screens/auth_screen.dart';
 import '../screens/admin_page.dart';
 import 'dart:async';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:io' show Platform;
 
 
 class Navbar extends StatefulWidget {
@@ -76,7 +78,7 @@ class _NavbarState extends State<Navbar> {
       {Color color = AppColors.textLight}) {
     return TextButton(
       onPressed: onTap,
-      child: Text(label, style: TextStyle(color: color)),
+      child: Text(label, style: TextStyle(color: color, fontSize: 16)),
     );
   }
 
@@ -208,13 +210,17 @@ class _NavbarState extends State<Navbar> {
 
   @override
   Widget build(BuildContext context) {
+    double topPadding = 20; // default
+    if (!kIsWeb && Platform.isAndroid) {
+      // Add system status bar height + extra spacing for Android
+      topPadding = MediaQuery.of(context).padding.top + 20;
+    }
     return LayoutBuilder(
       builder: (context, constraints) {
         final isNarrow = constraints.maxWidth < 700;
 
         return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          height: 60,
+          padding: EdgeInsets.fromLTRB(20, topPadding, 20, 5),
           width: double.infinity,
           color: AppColors.primaryRed,
           child: isNarrow
