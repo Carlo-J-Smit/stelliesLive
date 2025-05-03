@@ -160,6 +160,7 @@ class _EventsScreenState extends State<EventsScreen> {
                               Builder(
                                 builder:
                                     (context) => Row(
+                    
                                       children: [
                                         if (isNarrow)
                                           IconButton(

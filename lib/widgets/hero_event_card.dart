@@ -12,13 +12,13 @@ class HeroEventCard extends StatelessWidget {
     return SizedBox(
       width: double.infinity,
       child: AspectRatio(
-        aspectRatio: 16 / 5,
+        aspectRatio: 16 / 4,
         child: Stack(
           children: [
             // Background image with gradient overlay
             Container(
               width: double.infinity,
-              height: 350, // you can adjust
+              //height: 350, // you can adjust
               decoration: BoxDecoration(
                 image:
                     event.imageUrl != null
@@ -46,12 +46,14 @@ class HeroEventCard extends StatelessWidget {
             Align(
               alignment: Alignment.centerRight,
               child: Container(
-                width: MediaQuery.of(context).size.width * 0.45,
+                width: MediaQuery.of(context).size.width * 0.60,
                 margin: const EdgeInsets.only(right: 30),
                 padding: const EdgeInsets.all(24),
+                
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.end,
+                  
                   children: [
                     const Text(
                       "TODAY'S HIGHLIGHT",
@@ -59,13 +61,14 @@ class HeroEventCard extends StatelessWidget {
                         color: Color.fromARGB(255, 243, 49, 49),
                         fontSize: 14,
                         letterSpacing: 2,
-
+                        
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 6,),
                     Text(
                       event.title,
+                      textAlign: TextAlign.right,
                       style: const TextStyle(
                         fontSize: 28,
                         fontWeight: FontWeight.bold,
@@ -75,13 +78,14 @@ class HeroEventCard extends StatelessWidget {
                     const SizedBox(height: 6),
                     Text(
                       '${event.venue} @ ${TimeOfDay.fromDateTime(event.dateTime).format(context)}',
+                      textAlign: TextAlign.right,
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
                       ),
                     ),
 
-                    const SizedBox(height: 16),
+                    //const SizedBox(height: 10),
                     // Text(
                     //     event.recurring == true
                     //         ? (event.dayOfWeek?[0].toUpperCase() ?? '') +

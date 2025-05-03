@@ -62,80 +62,95 @@ class _TodayEventRotatorState extends State<TodayEventRotator> {
   @override
   Widget build(BuildContext context) {
     if (widget.events.isEmpty) {
-      return const SizedBox(); // ✅ Don't build anything if list is empty
+      return const SizedBox(); // No content
     }
 
-    final currentEvent =
-        widget.events[_currentIndex.clamp(0, widget.events.length - 1)];
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // 🔁 Rotating hero card + arrows + dots all inside a Stack
-        AspectRatio(
-          aspectRatio: 16 / 4, // adjust this for banner height
-          child: AnimatedSwitcher(
-            duration: _fadeDuration,
-            child: Stack(
-              key: ValueKey(currentEvent),
-              children: [
-                // 🎞 Hero Event Card
-                HeroEventCard(event: currentEvent),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isNarrow = constraints.maxWidth < 1000;
+        final isSuperNarrow = constraints.maxWidth < 500;
+        final currentEvent = widget.events[_currentIndex];
 
-                // ⬅️ Back Arrow
-                Positioned(
-                  left: 0,
-                  top: 0,
-                  bottom: 0,
-                  child: IconButton(
-                    icon: const Icon(Icons.arrow_back_ios),
-                    onPressed: _previousEvent,
-                    color: Colors.white,
-                  ),
-                ),
+        final double height =
+            isSuperNarrow
+                ? constraints.maxWidth / (16 / 8)
+                : isNarrow
+                ? constraints.maxWidth / (16 / 6)
+                : constraints.maxWidth / (16 / 4);
 
-                // ➡️ Forward Arrow
-                Positioned(
-                  right: 0,
-                  top: 0,
-                  bottom: 0,
-                  child: IconButton(
-                    icon: const Icon(Icons.arrow_forward_ios),
-                    onPressed: _manualNextEvent,
-                    color: Colors.white,
-                  ),
-                ),
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: double.infinity,
+              height: height,
+              child: AnimatedSwitcher(
+                duration: _fadeDuration,
+                child: Stack(
+                  key: ValueKey(currentEvent.id),
+                  fit: StackFit.expand,
+                  children: [
+                    HeroEventCard(event: currentEvent),
 
-                // 🟣 Dot indicators at the bottom center
-                Align(
-                  alignment: Alignment.bottomCenter,
-                  child: Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: List.generate(widget.events.length, (index) {
-                        final isActive = index == _currentIndex;
-                        return AnimatedContainer(
-                          duration: const Duration(milliseconds: 300),
-                          margin: const EdgeInsets.symmetric(horizontal: 4),
-                          width: isActive ? 12 : 8,
-                          height: isActive ? 12 : 8,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color:
-                                isActive
-                                    ? const Color(0xFF4B0B0B)
-                                    : Colors.grey[400],
-                          ),
-                        );
-                      }),
+                    // ⬅️ Back arrow
+                    Positioned(
+                      left: 0,
+                      top: 0,
+                      bottom: 0,
+                      child: IconButton(
+                        icon: const Icon(Icons.arrow_back_ios),
+                        onPressed: _previousEvent,
+                        color: Colors.white,
+                      ),
                     ),
-                  ),
+
+                    // ➡️ Forward arrow
+                    Positioned(
+                      right: 0,
+                      top: 0,
+                      bottom: 0,
+                      child: IconButton(
+                        icon: const Icon(Icons.arrow_forward_ios),
+                        onPressed: _manualNextEvent,
+                        color: Colors.white,
+                      ),
+                    ),
+
+                    // 🔘 Dots
+                    Align(
+                      alignment: Alignment.bottomCenter,
+                      child: Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: List.generate(widget.events.length, (
+                            index,
+                          ) {
+                            final isActive = index == _currentIndex;
+                            return AnimatedContainer(
+                              duration: const Duration(milliseconds: 300),
+                              margin: const EdgeInsets.symmetric(horizontal: 4),
+                              width: isActive ? 12 : 8,
+                              height: isActive ? 12 : 8,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color:
+                                    isActive
+                                        ? const Color(0xFF4B0B0B)
+                                        : Colors.grey[400],
+                              ),
+                            );
+                          }),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
-          ),
-        ),
-      ],
+          ],
+        );
+      },
     );
   }
 
