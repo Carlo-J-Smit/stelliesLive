@@ -13,13 +13,31 @@ class _AuthScreenState extends State<AuthScreen> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _identifierController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _confirmPasswordController = TextEditingController();
   final TextEditingController _smsCodeController = TextEditingController();
 
   bool _isLogin = true;
   bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
+  bool _awaitingSMS = false;
+  bool _isPhone = false;
+
   String? _errorMessage;
   String? _verificationId;
-  bool _awaitingSMS = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _identifierController.addListener(() {
+      final text = _identifierController.text.trim();
+      final isNowPhone = RegExp(r'^0\d{9}$').hasMatch(text);
+      if (isNowPhone != _isPhone) {
+        setState(() {
+          _isPhone = isNowPhone;
+        });
+      }
+    });
+  }
 
   Future<void> _submit() async {
     setState(() => _errorMessage = null);
@@ -29,12 +47,14 @@ class _AuthScreenState extends State<AuthScreen> {
     final password = _passwordController.text.trim();
 
     try {
-      if (RegExp(r'^\d{10,}$').hasMatch(identifier)) {
-        // 1️⃣ Handle cellphone login
+      if (_isPhone) {
         setState(() => _awaitingSMS = true);
 
+        final phoneDigits = identifier.replaceFirst('0', '');
+        final formattedPhone = '+27$phoneDigits';
+
         await FirebaseAuth.instance.verifyPhoneNumber(
-          phoneNumber: '+27${identifier.substring(identifier.length - 9)}',
+          phoneNumber: formattedPhone,
           verificationCompleted: (credential) async {
             await FirebaseAuth.instance.signInWithCredential(credential);
             if (context.mounted) Navigator.pop(context);
@@ -54,7 +74,6 @@ class _AuthScreenState extends State<AuthScreen> {
           codeAutoRetrievalTimeout: (_) {},
         );
       } else {
-        // 2️⃣ Handle email/username login
         String emailToUse = identifier;
 
         if (!identifier.contains('@')) {
@@ -81,18 +100,18 @@ class _AuthScreenState extends State<AuthScreen> {
         } else {
           final userCredential = await FirebaseAuth.instance
               .createUserWithEmailAndPassword(
-                email: emailToUse,
-                password: password,
-              );
+            email: emailToUse,
+            password: password,
+          );
 
           await FirebaseFirestore.instance
               .collection('users')
               .doc(userCredential.user!.uid)
               .set({
-                'email': emailToUse,
-                'username_or_cell': identifier,
-                'role': emailToUse == 'admin@gmail.com' ? 'admin' : 'user',
-              });
+            'email': emailToUse,
+            'username_or_cell': identifier,
+            'role': emailToUse == 'admin@gmail.com' ? 'admin' : 'user',
+          });
         }
 
         if (context.mounted) Navigator.pop(context);
@@ -140,9 +159,16 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    final isPhone = RegExp(r'^\d{10,}$').hasMatch(_identifierController.text.trim());
+  void dispose() {
+    _identifierController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    _smsCodeController.dispose();
+    super.dispose();
+  }
 
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text(_isLogin ? 'Login' : 'Register')),
       body: Padding(
@@ -161,13 +187,17 @@ class _AuthScreenState extends State<AuthScreen> {
                 ),
               TextFormField(
                 controller: _identifierController,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Email / Cellphone',
+                  helperText: _isPhone
+                      ? 'Format: 0XXXXXXXXX (e.g. 0831234567)'
+                      : 'Use a valid email or cellphone number',
                 ),
+                keyboardType: TextInputType.emailAddress,
                 validator: (value) =>
                     value == null || value.trim().isEmpty ? 'Enter an identifier' : null,
               ),
-              if (!isPhone && !_awaitingSMS) ...[
+              if (!_isPhone && !_awaitingSMS) ...[
                 const SizedBox(height: 10),
                 TextFormField(
                   controller: _passwordController,
@@ -178,8 +208,11 @@ class _AuthScreenState extends State<AuthScreen> {
                       icon: Icon(
                         _obscurePassword ? Icons.visibility_off : Icons.visibility,
                       ),
-                      onPressed: () => setState(
-                          () => _obscurePassword = !_obscurePassword),
+                      onPressed: () {
+                        setState(() {
+                          _obscurePassword = !_obscurePassword;
+                        });
+                      },
                     ),
                   ),
                   validator: (value) {
@@ -191,6 +224,36 @@ class _AuthScreenState extends State<AuthScreen> {
                     return null;
                   },
                 ),
+                if (!_isLogin) ...[
+                  const SizedBox(height: 10),
+                  TextFormField(
+                    controller: _confirmPasswordController,
+                    obscureText: _obscureConfirmPassword,
+                    decoration: InputDecoration(
+                      labelText: 'Confirm Password',
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _obscureConfirmPassword
+                              ? Icons.visibility_off
+                              : Icons.visibility,
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            _obscureConfirmPassword = !_obscureConfirmPassword;
+                          });
+                        },
+                      ),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Confirm your password';
+                      } else if (value != _passwordController.text) {
+                        return 'Passwords do not match';
+                      }
+                      return null;
+                    },
+                  ),
+                ],
               ],
               if (_awaitingSMS) ...[
                 const SizedBox(height: 10),
@@ -211,12 +274,17 @@ class _AuthScreenState extends State<AuthScreen> {
                 child: Text(_isLogin ? 'Login' : 'Register'),
               ),
               TextButton(
-                onPressed: () => setState(() => _isLogin = !_isLogin),
+                onPressed: () {
+                  setState(() {
+                    _isLogin = !_isLogin;
+                    _errorMessage = null;
+                  });
+                },
                 child: Text(_isLogin
                     ? 'Create an account'
                     : 'Already have an account?'),
               ),
-              if (_isLogin && !isPhone && !_awaitingSMS)
+              if (_isLogin && !_isPhone && !_awaitingSMS)
                 TextButton(
                   onPressed: _resetPassword,
                   child: const Text('Forgot Password?'),
