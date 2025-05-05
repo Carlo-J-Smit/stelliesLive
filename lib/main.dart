@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:stellieslive/constants/colors.dart';
 import 'services/firestore_service.dart';
 import 'models/event.dart';
 import 'widgets/event_card.dart';
@@ -23,7 +24,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'StelliesLive',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        colorScheme: ColorScheme.fromSeed(seedColor: AppColors.primaryRed),
         useMaterial3: true,
       ),
       home: const LandingPage(),
