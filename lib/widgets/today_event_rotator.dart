@@ -31,12 +31,14 @@ class _TodayEventRotatorState extends State<TodayEventRotator> {
   }
 
   void _nextEvent() {
+     if (!mounted) return;
     setState(() {
       _currentIndex = (_currentIndex + 1) % widget.events.length;
     });
   }
 
   void _previousEvent() {
+    if (!mounted) return;
     setState(() {
       _currentIndex =
           (_currentIndex - 1 + widget.events.length) % widget.events.length;

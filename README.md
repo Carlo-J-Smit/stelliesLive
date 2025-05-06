@@ -20,6 +20,5 @@ samples, guidance on mobile development, and a full API reference.
 - populate events
 - stress test
 - ui
-- events as een events is geen next arrows
 - two setep op email
 - support

@@ -1,0 +1,31 @@
+robo_directives:
+  - text: "Login / Register"
+    input_text: "admin@gmail.com"
+  - text: "Password"
+    input_text: "Carlo15045!"
+  - text: "Login"
+    action: TAP
+  - text: "View Events"
+    action: TAP
+  - text: "All Events"
+    action: TAP
+  - text: "Admin Panel"
+    action: TAP
+  - text: "Title"
+    input_text: "Test Event"
+  - text: "Venue"
+    input_text: "Stellenbosch Square"
+  - text: "Category"
+    input_text: "Party"
+  - text: "Description"
+    input_text: "DJ Night"
+  - text: "Image URL"
+    input_text: "https://example.com/image.png"
+  - text: "Select Date & Time"
+    action: TAP
+  - text: "OK"
+    action: TAP
+  - text: "Create Event"
+    action: TAP
+  - text: "Logout"
+    action: TAP
