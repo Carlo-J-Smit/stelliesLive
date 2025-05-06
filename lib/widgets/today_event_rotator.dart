@@ -26,6 +26,7 @@ class _TodayEventRotatorState extends State<TodayEventRotator> {
   }
 
   void _startRotating() {
+    if (widget.events.length <= 1) return;
     _timer = Timer.periodic(_interval, (_) => _nextEvent());
   }
 
@@ -93,6 +94,7 @@ class _TodayEventRotatorState extends State<TodayEventRotator> {
                     HeroEventCard(event: currentEvent),
 
                     // ⬅️ Back arrow
+                    if (widget.events.length > 1)
                     Positioned(
                       left: 0,
                       top: 0,
@@ -105,6 +107,7 @@ class _TodayEventRotatorState extends State<TodayEventRotator> {
                     ),
 
                     // ➡️ Forward arrow
+                    if (widget.events.length > 1)
                     Positioned(
                       right: 0,
                       top: 0,
@@ -117,6 +120,7 @@ class _TodayEventRotatorState extends State<TodayEventRotator> {
                     ),
 
                     // 🔘 Dots
+                    if (widget.events.length > 1)
                     Align(
                       alignment: Alignment.bottomCenter,
                       child: Padding(

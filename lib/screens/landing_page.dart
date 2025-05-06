@@ -5,7 +5,6 @@ import 'events_screen.dart';
 import 'study_screen.dart';
 import '../widgets/nav_bar.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../cache/event_cache.dart';
 
 
 class LandingPage extends StatefulWidget {
@@ -21,7 +20,6 @@ class _LandingPageState extends State<LandingPage> {
   @override
   void initState() {
     super.initState();
-    EventCache.preload();
     _user = FirebaseAuth.instance.currentUser;
     FirebaseAuth.instance.authStateChanges().listen((user) {
       setState(() {
