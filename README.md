@@ -17,8 +17,9 @@ samples, guidance on mobile development, and a full API reference.
 
 ##TODO
 
-- logout on close andriod and web
-- test login with phone aswell as password reset
 - populate events
 - stress test
 - ui
+- events as een events is geen next arrows
+- two setep op email
+- support

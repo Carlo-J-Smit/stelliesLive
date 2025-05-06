@@ -4,6 +4,9 @@ import 'auth_screen.dart';
 import 'events_screen.dart';
 import 'study_screen.dart';
 import '../widgets/nav_bar.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../cache/event_cache.dart';
+
 
 class LandingPage extends StatefulWidget {
   const LandingPage({super.key});
@@ -18,12 +21,20 @@ class _LandingPageState extends State<LandingPage> {
   @override
   void initState() {
     super.initState();
+    EventCache.preload();
     _user = FirebaseAuth.instance.currentUser;
     FirebaseAuth.instance.authStateChanges().listen((user) {
       setState(() {
         _user = user;
       });
     });
+  }
+
+   Future<void> preloadEvents() async {
+    await FirebaseFirestore.instance
+        .collection('events')
+        .get(const GetOptions(source: Source.serverAndCache));
+    // Optional: setState or store data in a global state provider if needed
   }
 
   void _logout() async {
