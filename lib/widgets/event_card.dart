@@ -25,7 +25,7 @@ class _EventCardState extends State<EventCard> {
   Widget build(BuildContext context) {
     final event = widget.event;
     final hasImage = event.imageUrl != null && event.imageUrl!.isNotEmpty;
-    print('Event "${event.title}" has location: ${event.lat}, ${event.lng}');
+    //print('Event "${event.title}" has location: ${event.lat}, ${event.lng}');
 
     return GestureDetector(
       onTap: _toggleExpanded,

@@ -9,6 +9,8 @@ import '../screens/admin_page.dart';
 import 'dart:async';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:io' show Platform;
+import '../models/event.dart';
+
 
 
 class Navbar extends StatefulWidget {
@@ -95,10 +97,12 @@ class _NavbarState extends State<Navbar> {
           ),
         ),
         const Spacer(),
-        _navButton(context, 'Activity', () {
+        _navButton(context, 'Activity', () async {
+          final eventsSnapshot = await FirebaseFirestore.instance.collection('events').get();
+          final events = eventsSnapshot.docs.map((doc) => Event.fromFirestore(doc)).toList();
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (_) => const ActivityScreen()),
+            MaterialPageRoute(builder: (_) => ActivityScreen(events: events)),
           );
         }),
         _navButton(context, 'Events', () {
@@ -151,11 +155,18 @@ class _NavbarState extends State<Navbar> {
           onSelected: (value) {
             switch (value) {
               case 'Activity':
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (_) => const ActivityScreen()),
-                );
+                () async {
+                  final eventsSnapshot = await FirebaseFirestore.instance.collection('events').get();
+                  final events = eventsSnapshot.docs.map((doc) => Event.fromFirestore(doc)).toList();
+
+                  if (!mounted) return;
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(builder: (_) => ActivityScreen(events: events)),
+                  );
+                }();
                 break;
+
               case 'Events':
                 Navigator.pushReplacement(
                   context,

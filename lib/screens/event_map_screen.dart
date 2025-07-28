@@ -1,7 +1,9 @@
+// Updated event_map_screen.dart
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../models/event.dart';
 
 class EventMapScreen extends StatefulWidget {
@@ -19,12 +21,84 @@ class _EventMapScreenState extends State<EventMapScreen> {
   Set<Circle> _popularityCircles = {};
   bool _loading = true;
   bool _showHeatmap = true;
+  Position? _userPosition;
+  String? _error;
 
   @override
   void initState() {
     super.initState();
-    _loadEventMarkers();
-    _loadPopularityCircles();
+    _initMap();
+  }
+
+  Future<void> _initMap() async {
+    try {
+      final pos = await _handleLocationPermission();
+      if (pos == null) return;
+
+      setState(() => _userPosition = pos);
+      _loadEventMarkers();
+      _loadPopularityCircles();
+      await _logUserLocation(pos);
+    } catch (e) {
+      setState(() => _error = e.toString());
+    }
+  }
+
+  Future<void> _logUserLocation(Position pos) async {
+    await FirebaseFirestore.instance.collection('location_logs').add({
+      'userId': FirebaseAuth.instance.currentUser?.uid,
+      'timestamp': Timestamp.now(),
+      'lat': pos.latitude,
+      'lng': pos.longitude,
+    });
+  }
+
+  Future<Position?> _handleLocationPermission() async {
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      _showDialog("Location services are disabled. Please enable them in your device settings.");
+      return null;
+    }
+
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        _showDialog("Location permission is required to show the map.");
+        return null;
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      _showDialog(
+        "Location permission is permanently denied. Please open app settings to enable it.",
+        showSettings: true,
+      );
+      return null;
+    }
+
+    return await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.best);
+  }
+
+  void _showDialog(String message, {bool showSettings = false}) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Location Required'),
+        content: Text(message),
+        actions: [
+          if (showSettings)
+            TextButton(
+              onPressed: () => Geolocator.openAppSettings(),
+              child: const Text('Open Settings'),
+            ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _loadEventMarkers() {
@@ -42,14 +116,6 @@ class _EventMapScreenState extends State<EventMapScreen> {
     });
   }
 
-  String _clusterKey(double lat, double lng) {
-    // Approx 0.00045 deg ~ 50m
-    int latBucket = (lat / 0.00045).round();
-    int lngBucket = (lng / 0.00045).round();
-    return '$latBucket|$lngBucket';
-  }
-
-
   Future<void> _loadPopularityCircles() async {
     final snapshot = await FirebaseFirestore.instance.collection('location_logs').get();
 
@@ -58,9 +124,7 @@ class _EventMapScreenState extends State<EventMapScreen> {
         .where((data) =>
     data.containsKey('lat') &&
         data.containsKey('lng') &&
-        data.containsKey('timestamp') &&
-        data.containsKey('accuracy') &&
-        data['accuracy'] <= 25) // Only high accuracy
+        data.containsKey('timestamp'))
         .toList();
 
     final now = Timestamp.now();
@@ -77,7 +141,6 @@ class _EventMapScreenState extends State<EventMapScreen> {
       final double lng = center['lng'];
       final centerPoint = LatLng(lat, lng);
 
-      // Count how many logs are within 50m of this point
       int nearbyCount = recentLogs.where((entry) {
         final d = Geolocator.distanceBetween(
           lat,
@@ -88,25 +151,7 @@ class _EventMapScreenState extends State<EventMapScreen> {
         return d <= 50;
       }).length;
 
-      // Handle user popularity report (0 = no data)
-      int reportScore = center['popularity'] ?? 0;
-
-      // Combine scores with weights
-      double popularityScore = 0;
-      if (reportScore > 0) {
-        popularityScore += reportScore * 2;
-      }
-
-      if (nearbyCount < 50) {
-        popularityScore += 1;
-      } else if (nearbyCount <= 200) {
-        popularityScore += 2;
-      } else {
-        popularityScore += 3;
-      }
-
-      // Final level
-      int level = popularityScore.round().clamp(1, 3); // 1 = quiet, 3 = busy
+      int level = (nearbyCount / 30).round().clamp(1, 3); // 1–3 scale
 
       Color color;
       switch (level) {
@@ -136,8 +181,6 @@ class _EventMapScreenState extends State<EventMapScreen> {
       _loading = false;
     });
   }
-
-
 
   Widget _buildLegend() {
     return Positioned(
@@ -184,15 +227,17 @@ class _EventMapScreenState extends State<EventMapScreen> {
           : Stack(
         children: [
           GoogleMap(
-            initialCameraPosition: const CameraPosition(
-              target: LatLng(-33.9346, 18.8612),
+            initialCameraPosition: CameraPosition(
+              target: _userPosition != null
+                  ? LatLng(_userPosition!.latitude, _userPosition!.longitude)
+                  : const LatLng(-33.9346, 18.8612),
               zoom: 14,
             ),
             markers: _eventMarkers,
             circles: _showHeatmap ? _popularityCircles : {},
-            onMapCreated: (controller) {
-              _mapController = controller;
-            },
+            onMapCreated: (controller) => _mapController = controller,
+            myLocationEnabled: true,
+            myLocationButtonEnabled: true,
           ),
           _buildLegend(),
         ],
