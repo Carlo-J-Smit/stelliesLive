@@ -10,6 +10,8 @@ class Event {
   final String category;
   final bool? recurring;
   final String? dayOfWeek;
+  final double? lat;
+  final double? lng;
 
   Event({
     required this.id,
@@ -21,6 +23,8 @@ class Event {
     this.recurring,
     this.dayOfWeek,
     this.imageUrl,
+    this.lat,
+    this.lng,
   });
 
   factory Event.fromMap(String id, Map<String, dynamic> data) {
@@ -34,6 +38,13 @@ class Event {
       category: data['category'] ?? '',
       recurring: data['recurring'] is bool ? data['recurring'] : null,
       dayOfWeek: data['dayOfWeek'],
+      lat: (data['lat'] as num?)?.toDouble(),
+      lng: (data['lng'] as num?)?.toDouble(),
     );
+  }
+
+  factory Event.fromFirestore(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
+    return Event.fromMap(doc.id, data);
   }
 }

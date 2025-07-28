@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../constants/colors.dart';
-import '../screens/landing_page.dart';
+import '../screens/activity.dart';
 import '../screens/events_screen.dart';
 import '../screens/auth_screen.dart';
 import '../screens/admin_page.dart';
@@ -95,12 +95,12 @@ class _NavbarState extends State<Navbar> {
           ),
         ),
         const Spacer(),
-        // _navButton(context, 'Home', () {
-        //   Navigator.pushReplacement(
-        //     context,
-        //     MaterialPageRoute(builder: (_) => const LandingPage()),
-        //   );
-        // }),
+        _navButton(context, 'Activity', () {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const ActivityScreen()),
+          );
+        }),
         _navButton(context, 'Events', () {
           Navigator.pushReplacement(
             context,
@@ -150,12 +150,12 @@ class _NavbarState extends State<Navbar> {
           icon: const Icon(Icons.menu, color: Colors.white),
           onSelected: (value) {
             switch (value) {
-              // case 'Home':
-              //   Navigator.pushReplacement(
-              //     context,
-              //     MaterialPageRoute(builder: (_) => const LandingPage()),
-              //   );
-              //   break;
+              case 'Activity':
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ActivityScreen()),
+                );
+                break;
               case 'Events':
                 Navigator.pushReplacement(
                   context,
@@ -180,7 +180,7 @@ class _NavbarState extends State<Navbar> {
             }
           },
           itemBuilder: (context) => [
-            //const PopupMenuItem(value: 'Home', child: Text('Home')),
+            const PopupMenuItem(value: 'Activity', child: Text('Activity')),
             const PopupMenuItem(value: 'Events', child: Text('Events')),
             if (_user == null)
               const PopupMenuItem(value: 'Login', child: Text('Business Login')),
