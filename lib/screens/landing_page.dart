@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'auth_screen.dart';
 import 'events_screen.dart';
-import 'study_screen.dart';
 import '../widgets/nav_bar.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -88,17 +87,7 @@ class _LandingPageState extends State<LandingPage> {
                       );
                     },
                     child: const Text('View Events'),
-                  ),
-                  const SizedBox(height: 10),
-                  ElevatedButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => const StudyScreen()),
-                      );
-                    },
-                    child: const Text('Study & Tutors'),
-                  ),
+                  )
                 ],
               ),
             ),

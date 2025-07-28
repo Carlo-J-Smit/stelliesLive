@@ -4,7 +4,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../constants/colors.dart';
 import '../screens/landing_page.dart';
 import '../screens/events_screen.dart';
-import '../screens/study_screen.dart';
 import '../screens/auth_screen.dart';
 import '../screens/admin_page.dart';
 import 'dart:async';
@@ -96,22 +95,16 @@ class _NavbarState extends State<Navbar> {
           ),
         ),
         const Spacer(),
-        _navButton(context, 'Home', () {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (_) => const LandingPage()),
-          );
-        }),
+        // _navButton(context, 'Home', () {
+        //   Navigator.pushReplacement(
+        //     context,
+        //     MaterialPageRoute(builder: (_) => const LandingPage()),
+        //   );
+        // }),
         _navButton(context, 'Events', () {
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(builder: (_) => const EventsScreen()),
-          );
-        }),
-        _navButton(context, 'Study & Tutors', () {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (_) => const StudyScreen()),
           );
         }),
         if (_user == null)
@@ -157,22 +150,16 @@ class _NavbarState extends State<Navbar> {
           icon: const Icon(Icons.menu, color: Colors.white),
           onSelected: (value) {
             switch (value) {
-              case 'Home':
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (_) => const LandingPage()),
-                );
-                break;
+              // case 'Home':
+              //   Navigator.pushReplacement(
+              //     context,
+              //     MaterialPageRoute(builder: (_) => const LandingPage()),
+              //   );
+              //   break;
               case 'Events':
                 Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(builder: (_) => const EventsScreen()),
-                );
-                break;
-              case 'Study':
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (_) => const StudyScreen()),
                 );
                 break;
               case 'Login':
@@ -193,9 +180,8 @@ class _NavbarState extends State<Navbar> {
             }
           },
           itemBuilder: (context) => [
-            const PopupMenuItem(value: 'Home', child: Text('Home')),
+            //const PopupMenuItem(value: 'Home', child: Text('Home')),
             const PopupMenuItem(value: 'Events', child: Text('Events')),
-            const PopupMenuItem(value: 'Study', child: Text('Study & Tutors')),
             if (_user == null)
               const PopupMenuItem(value: 'Login', child: Text('Login')),
             if (_user != null)
