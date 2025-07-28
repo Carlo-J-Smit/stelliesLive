@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../models/event.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+
 class EventCard extends StatefulWidget {
   final Event event;
 
@@ -24,6 +25,7 @@ class _EventCardState extends State<EventCard> {
   Widget build(BuildContext context) {
     final event = widget.event;
     final hasImage = event.imageUrl != null && event.imageUrl!.isNotEmpty;
+    print('Event "${event.title}" has location: ${event.lat}, ${event.lng}');
 
     return GestureDetector(
       onTap: _toggleExpanded,
@@ -99,27 +101,27 @@ class _EventCardState extends State<EventCard> {
               ),
             ],
 
-            Text('${event.distance?.toStringAsFixed(0)} meters away'),
 
 
+
+            if (event.lat != null && event.lng != null)
             TextButton.icon(
               icon: const Icon(Icons.map_outlined),
               label: const Text('Open in Maps'),
               onPressed: () {
-                final lat = event.lat;
-                final lng = event.lng;
-                if (lat != null && lng != null) {
-                  final uri = Uri.parse('https://www.google.com/maps/search/?api=1&query=$lat,$lng');
-                  launchUrl(uri, mode: LaunchMode.externalApplication);
-                }
+                final uri = Uri.parse('https://www.google.com/maps/dir/?api=1&destination=${event.lat},${event.lng}');
+                launchUrl(uri, mode: LaunchMode.externalApplication);
               },
             ),
+
 
           ],
         ),
       ),
     );
   }
+
+
 
   String _formatDateTime(DateTime dt) {
     return "${dt.day}/${dt.month}/${dt.year} @ ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}";

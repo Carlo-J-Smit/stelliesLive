@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:geocoding/geocoding.dart';
+
 
 class AdminPage extends StatefulWidget {
   const AdminPage({super.key});
@@ -163,6 +166,18 @@ class _AdminPageState extends State<AdminPage> {
                   ),
                 ),
               ],
+              const SizedBox(height: 10),
+              Text(
+                _locationAddress != null
+                    ? 'Location: $_locationAddress'
+                    : 'No location selected.',
+              ),
+              TextButton.icon(
+                icon: const Icon(Icons.location_on),
+                label: const Text("Pick Location"),
+                onPressed: _openLocationPicker,
+              ),
+
 
               const SizedBox(height: 20),
               if (_error != null)
@@ -180,6 +195,34 @@ class _AdminPageState extends State<AdminPage> {
         ),
       ),
     );
+  }
+
+  Future<void> _openLocationPicker() async {
+    final LatLng? picked = await showDialog(
+      context: context,
+      builder: (context) => _MapPickerDialog(),
+    );
+
+    if (picked != null) {
+      _locationLat = picked.latitude;
+      _locationLng = picked.longitude;
+
+      try {
+        final placemarks = await placemarkFromCoordinates(
+            picked.latitude, picked.longitude);
+        if (placemarks.isNotEmpty) {
+          final place = placemarks.first;
+          setState(() {
+            _locationAddress =
+            '${place.name}, ${place.locality}, ${place.administrativeArea}';
+          });
+        }
+      } catch (e) {
+        setState(() {
+          _locationAddress = 'Lat: ${picked.latitude}, Lng: ${picked.longitude}';
+        });
+      }
+    }
   }
 
   void _searchEvents() async {
@@ -249,7 +292,20 @@ class _AdminPageState extends State<AdminPage> {
       _descriptionController.text = doc['description'] ?? '';
       _imageUrlController.text = doc['imageUrl'] ?? '';
 
-      final isRecurring = doc['recurring'] == true;
+      // ✅ Check if "location" exists before using it
+      if (doc.data() is Map && (doc.data() as Map).containsKey('location')) {
+      final location = doc['location'];
+      _locationLat = location['lat'];
+      _locationLng = location['lng'];
+      _locationAddress = location['address'];
+      } else {
+      _locationLat = null;
+      _locationLng = null;
+      _locationAddress = null;
+      }
+
+
+  final isRecurring = doc['recurring'] == true;
       _isRecurring = isRecurring;
 
       if (isRecurring) {
@@ -296,8 +352,16 @@ class _AdminPageState extends State<AdminPage> {
       } else if (_selectedDateTime != null) {
         data['dateTime'] = Timestamp.fromDate(_selectedDateTime!);
       }
+      if (_locationLat != null && _locationLng != null) {
+      data['location'] = {
+      'lat': _locationLat,
+      'lng': _locationLng,
+      'address': _locationAddress ?? '',
+      };
+      }
 
-      if (_selectedEvent == null) {
+
+  if (_selectedEvent == null) {
         await FirebaseFirestore.instance.collection('events').add(data);
       } else {
         await FirebaseFirestore.instance
@@ -419,5 +483,59 @@ class _AdminPageState extends State<AdminPage> {
         context,
       ).showSnackBar(SnackBar(content: Text("Deleted '${doc['title']}'")));
     }
+  }
+}
+
+class _MapPickerDialog extends StatefulWidget {
+  @override
+  State<_MapPickerDialog> createState() => _MapPickerDialogState();
+}
+
+class _MapPickerDialogState extends State<_MapPickerDialog> {
+  LatLng _initialPosition = const LatLng(-33.9249, 18.4241); // Cape Town
+  LatLng? _pickedLocation;
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text("Pick Location"),
+      content: SizedBox(
+        width: double.maxFinite,
+        height: 400,
+        child: GoogleMap(
+          initialCameraPosition: CameraPosition(
+            target: _initialPosition,
+            zoom: 12,
+          ),
+          onTap: (LatLng pos) {
+            setState(() {
+              _pickedLocation = pos;
+            });
+          },
+          markers: _pickedLocation != null
+              ? {
+            Marker(
+              markerId: const MarkerId('picked'),
+              position: _pickedLocation!,
+            ),
+          }
+              : {},
+        ),
+      ),
+      actions: [
+        TextButton(
+          child: const Text("Cancel"),
+          onPressed: () => Navigator.pop(context),
+        ),
+        ElevatedButton(
+          child: const Text("Select"),
+          onPressed: () {
+            if (_pickedLocation != null) {
+              Navigator.pop(context, _pickedLocation);
+            }
+          },
+        ),
+      ],
+    );
   }
 }

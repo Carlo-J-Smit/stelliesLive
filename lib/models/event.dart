@@ -33,6 +33,8 @@ class Event {
   });
 
   factory Event.fromMap(String id, Map<String, dynamic> data) {
+    final location = data['location'] as Map<String, dynamic>?;
+
     return Event(
       id: id,
       title: data['title'] ?? '',
@@ -43,11 +45,12 @@ class Event {
       category: data['category'] ?? '',
       recurring: data['recurring'] is bool ? data['recurring'] : null,
       dayOfWeek: data['dayOfWeek'],
-      lat: (data['lat'] as num?)?.toDouble(),
-      lng: (data['lng'] as num?)?.toDouble(),
+      lat: (location?['lat'] as num?)?.toDouble(),
+      lng: (location?['lng'] as num?)?.toDouble(),
       popularity: data['popularity'],
     );
   }
+
 
   factory Event.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
