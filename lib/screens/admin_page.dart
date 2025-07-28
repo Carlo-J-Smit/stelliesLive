@@ -22,6 +22,10 @@ class _AdminPageState extends State<AdminPage> {
 
   bool _isSubmitting = false;
   String? _error;
+  String? _locationAddress;
+  double? _locationLat;
+  double? _locationLng;
+
   List<DocumentSnapshot> _searchResults = [];
   DocumentSnapshot? _selectedEvent;
 

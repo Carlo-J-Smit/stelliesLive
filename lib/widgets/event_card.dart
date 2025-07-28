@@ -1,5 +1,8 @@
+//event_card
+
 import 'package:flutter/material.dart';
 import '../models/event.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class EventCard extends StatefulWidget {
   final Event event;
@@ -95,6 +98,23 @@ class _EventCardState extends State<EventCard> {
                 style: const TextStyle(color: Colors.black87),
               ),
             ],
+
+            Text('${event.distance?.toStringAsFixed(0)} meters away'),
+
+
+            TextButton.icon(
+              icon: const Icon(Icons.map_outlined),
+              label: const Text('Open in Maps'),
+              onPressed: () {
+                final lat = event.lat;
+                final lng = event.lng;
+                if (lat != null && lng != null) {
+                  final uri = Uri.parse('https://www.google.com/maps/search/?api=1&query=$lat,$lng');
+                  launchUrl(uri, mode: LaunchMode.externalApplication);
+                }
+              },
+            ),
+
           ],
         ),
       ),

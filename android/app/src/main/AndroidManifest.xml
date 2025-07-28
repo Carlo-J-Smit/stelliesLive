@@ -1,5 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
 
     <application
         android:label="stellieslive"
@@ -32,6 +33,15 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+            
+        <meta-data android:name="com.google.android.geo.API_KEY"
+           android:value="AIzaSyCfTX0EILLe0Xw8fCcIBs-Hzv2gVhS_BfA"/>
+           
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="AIzaSyB7ma9rvKBvuv9u968rSMr8NrcYdvkkInQ"/>
+
+
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and

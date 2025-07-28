@@ -12,6 +12,9 @@ class Event {
   final String? dayOfWeek;
   final double? lat;
   final double? lng;
+  double? distance;
+  final int? popularity; // 1 = Quiet, 2 = Moderate, 3 = Busy
+
 
   Event({
     required this.id,
@@ -25,6 +28,8 @@ class Event {
     this.imageUrl,
     this.lat,
     this.lng,
+    this.distance,
+    this.popularity,
   });
 
   factory Event.fromMap(String id, Map<String, dynamic> data) {
@@ -40,6 +45,7 @@ class Event {
       dayOfWeek: data['dayOfWeek'],
       lat: (data['lat'] as num?)?.toDouble(),
       lng: (data['lng'] as num?)?.toDouble(),
+      popularity: data['popularity'],
     );
   }
 
