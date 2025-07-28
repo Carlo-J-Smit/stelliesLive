@@ -36,9 +36,10 @@ class _EventsScreenState extends State<EventsScreen> {
     setState(() {
       _filteredEvents =
           _allEvents.where((event) {
-            final matchesSearch = event.title.toLowerCase().contains(
-              _searchQuery.toLowerCase(),
-            );
+            final lowerQuery = _searchQuery.toLowerCase();
+            final matchesSearch = event.title.toLowerCase().contains(lowerQuery) ||
+                event.venue.toLowerCase().contains(lowerQuery);
+
             final matchesFilter =
                 _filterType == 'All' || event.category == _filterType;
             return matchesSearch && matchesFilter;

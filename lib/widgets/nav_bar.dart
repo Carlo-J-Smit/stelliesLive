@@ -108,7 +108,7 @@ class _NavbarState extends State<Navbar> {
           );
         }),
         if (_user == null)
-          _navButton(context, 'Login', () {
+          _navButton(context, 'Business Login', () {
             Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const AuthScreen()),
@@ -119,7 +119,7 @@ class _NavbarState extends State<Navbar> {
         if (isAdmin)
           _navButton(
             context,
-            'Admin',
+            'Business Login',
             () {
               Navigator.push(
                 context,
@@ -183,11 +183,11 @@ class _NavbarState extends State<Navbar> {
             //const PopupMenuItem(value: 'Home', child: Text('Home')),
             const PopupMenuItem(value: 'Events', child: Text('Events')),
             if (_user == null)
-              const PopupMenuItem(value: 'Login', child: Text('Login')),
+              const PopupMenuItem(value: 'Login', child: Text('Business Login')),
             if (_user != null)
               const PopupMenuItem(value: 'Logout', child: Text('Logout')),
             if (isAdmin)
-              const PopupMenuItem(value: 'Admin', child: Text('Admin')),
+              const PopupMenuItem(value: 'Admin', child: Text('Business Login')),
           ],
         ),
       ],
