@@ -226,7 +226,15 @@ class _ActivityScreenState extends State<ActivityScreen> {
   }
 
   Future<void> _loadPopularityCircles() async {
-    final snapshot = await FirebaseFirestore.instance.collection('location_logs').get();
+    final thirtyMinutesAgo = Timestamp.fromMillisecondsSinceEpoch(
+      DateTime.now().millisecondsSinceEpoch - (30 * 60 * 1000),
+    );
+
+    final snapshot = await FirebaseFirestore.instance
+        .collection('location_logs')
+        .where('timestamp', isGreaterThan: thirtyMinutesAgo)
+        .get();
+
 
     final logs = snapshot.docs
         .map((doc) => doc.data())
@@ -242,54 +250,75 @@ class _ActivityScreenState extends State<ActivityScreen> {
       return now.seconds - timestamp.seconds <= 30 * 60;
     }).toList();
 
-    final Set<Circle> circles = {};
-    int idCounter = 0;
+    // Convert to LatLng
+    final List<LatLng> points = recentLogs
+        .map((e) => LatLng(e['lat'] as double, e['lng'] as double))
+        .toList();
 
-    for (var center in recentLogs) {
-      final double lat = center['lat'];
-      final double lng = center['lng'];
-      final centerPoint = LatLng(lat, lng);
-
-      int nearbyCount = recentLogs.where((entry) {
-        final d = Geolocator.distanceBetween(
-          lat,
-          lng,
-          entry['lat'],
-          entry['lng'],
-        );
-        return d <= 50;
-      }).length;
-
-      int level = (nearbyCount / 30).round().clamp(1, 3);
-
-      Color color;
-      switch (level) {
-        case 1:
-          color = Colors.green.withOpacity(0.3);
-          break;
-        case 2:
-          color = Colors.orange.withOpacity(0.4);
-          break;
-        case 3:
-        default:
-          color = Colors.red.withOpacity(0.5);
-          break;
-      }
-
-      circles.add(Circle(
-        circleId: CircleId('circle_${idCounter++}'),
-        center: centerPoint,
-        radius: 60,
-        fillColor: color,
-        strokeColor: Colors.transparent,
-      ));
-    }
+    final Set<Circle> circles = _buildGroupedCircles(points, 50); // 50m group distance
 
     setState(() {
       _popularityCircles = circles;
       _loading = false;
     });
   }
+
+
+  Set<Circle> _buildGroupedCircles(List<LatLng> points, double groupDistance) {
+    List<List<LatLng>> groups = [];
+
+    for (final point in points) {
+      bool added = false;
+      for (final group in groups) {
+        if (group.any((member) =>
+        Geolocator.distanceBetween(
+          point.latitude,
+          point.longitude,
+          member.latitude,
+          member.longitude,
+        ) <= groupDistance)) {
+          group.add(point);
+          added = true;
+          break;
+        }
+      }
+      if (!added) {
+        groups.add([point]);
+      }
+    }
+
+    int idCounter = 0;
+    Set<Circle> result = {};
+
+    for (final group in groups) {
+      final avgLat = group.map((p) => p.latitude).reduce((a, b) => a + b) / group.length;
+      final avgLng = group.map((p) => p.longitude).reduce((a, b) => a + b) / group.length;
+
+      Color color;
+      final level = group.length;
+
+      if (level < 10) {
+        color = Colors.white.withAlpha(0);
+      } else if (level < 30) {
+        color = Colors.green.withAlpha(77);
+      } else if (level < 150) {
+        color = Colors.orange.withAlpha(120);
+      } else {
+        color = Colors.red.withAlpha(140);
+      }
+
+      result.add(Circle(
+        circleId: CircleId('group_${idCounter++}'),
+        center: LatLng(avgLat, avgLng),
+        radius: 60,
+        fillColor: color,
+        strokeColor: Colors.transparent,
+      ));
+    }
+
+    return result;
+  }
+
 
   Widget _buildLegend() {
     return Positioned(

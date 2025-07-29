@@ -11,4 +11,5 @@ TODO:
 skuif jump to location op map.
 figure notifications uit.
 figure heat map ding nog uit. (maybe meer soos google maps sin.)
+map theme json
 
