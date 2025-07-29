@@ -10,7 +10,15 @@ import 'screens/events_screen.dart';
 import 'screens/admin_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_performance/firebase_performance.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:permission_handler/permission_handler.dart';
 
+
+Future<void> _requestNotificationPermission() async {
+  if (await Permission.notification.isDenied) {
+    await Permission.notification.request();
+  }
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -24,6 +32,41 @@ void main() async {
 
   // ✅ Initialize Firebase Performance
   FirebasePerformance performance = FirebasePerformance.instance;
+
+  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+  FlutterLocalNotificationsPlugin();
+
+// // Step 1: Create Android Notification Channel
+//   await _requestNotificationPermission();
+//
+//   const AndroidNotificationChannel channel = AndroidNotificationChannel(
+//     'high_importance_channel', // id
+//     'High Importance Notifications', // title
+//     description: 'This channel is used for important notifications.', // description
+//     importance: Importance.high,
+//   );
+//
+// // Step 2: Initialize the plugin
+//   const AndroidInitializationSettings initializationSettingsAndroid =
+//   AndroidInitializationSettings('ic_stat_notifications');
+//
+//   const InitializationSettings initializationSettings = InitializationSettings(
+//     android: initializationSettingsAndroid,
+//     iOS: DarwinInitializationSettings(),
+//   );
+//
+//   await flutterLocalNotificationsPlugin.initialize(
+//     initializationSettings,
+//     onDidReceiveNotificationResponse: (NotificationResponse response) {
+//       debugPrint('User tapped notification: ${response.payload}');
+//     },
+//   );
+//
+// // Step 3: Register the channel with Android
+//   await flutterLocalNotificationsPlugin
+//       .resolvePlatformSpecificImplementation<
+//       AndroidFlutterLocalNotificationsPlugin>()
+//       ?.createNotificationChannel(channel);
 
   runApp(const MyApp());
 }
@@ -46,6 +89,8 @@ class MyApp extends StatelessWidget {
       },
     );
   }
+
+
 }
 
 // class EventsScreen extends StatefulWidget {

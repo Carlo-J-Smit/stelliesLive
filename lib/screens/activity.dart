@@ -32,44 +32,87 @@ class _ActivityScreenState extends State<ActivityScreen> {
   LatLng? _selectedEventPosition;
   Event? _nearbyEvent;
   final Map<String, DateTime> _lastNotified = {};
+  bool _notificationsBlocked = false;
 
 
+
+
+
+  Future<void> _initActivity() async {
+    final pos = await _handleLocationPermission();
+    if (pos == null) return;
+
+    setState(() => _userPosition = pos);
+    setState(() => _loading = false); // after getting location
+
+     _logUserLocation(pos);
+
+
+    if (!_notificationsBlocked) {
+      debugPrint('[NOTIF] Proximity trigger check ran');
+      // ✅ CALL IT ONCE IMMEDIATELY
+      await _checkProximityToEvent();
+
+      // ✅ THEN CONTINUE WITH THE TIMER
+      Timer.periodic(const Duration(seconds: 30), (_) => _checkProximityToEvent());
+    }
+  }
 
   @override
   void initState() {
     super.initState();
-    _initMap();
-    _initNotifications();
-    Timer.periodic(const Duration(seconds: 180), (_) => _checkProximityToEvent());
 
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _initNotifications();
+      await _initActivity();
+    });
+
+    _subscribeToClusterUpdates();
   }
 
+
+
   Future<void> _sendFeedbackNotification(Event event) async {
+    debugPrint('[NOTIF] Trying to send');
     final plugin = FlutterLocalNotificationsPlugin();
     const details = NotificationDetails(
       android: AndroidNotificationDetails(
         'busyness_feedback',
         'Event Feedback',
+        icon: '@mipmap/ic_launcher',
         importance: Importance.high,
         priority: Priority.high,
       ),
       iOS: DarwinNotificationDetails(),
     );
 
-    await plugin.show(
-      0,
-      'Are you at ${event.title}?',
-      'Tap to give quick feedback!',
-      details,
-    );
+    try {
+      await plugin.show(
+        0,
+        'Are you at ${event.title}?',
+        'Tap to give quick feedback!',
+        details,
+      );
+      debugPrint("✅ Feedback notification sent for ${event.title}");
+    } catch (e) {
+      debugPrint("❌ Failed to send feedback notification: $e");
+    }
+
+
   }
 
   Future<void> _checkProximityToEvent() async {
     try {
       final pos = await Geolocator.getCurrentPosition();
+      debugPrint("📍 User position: ${pos.latitude}, ${pos.longitude}");
       final now = DateTime.now();
+      Text('Nearby event: ${_nearbyEvent?.title ?? "None"}');
+
+
+
 
       for (final event in widget.events) {
+        debugPrint("Checking event: ${event.title}, lat=${event.lat}, lng=${event.lng}");
         if (event.lat != null && event.lng != null) {
           final distance = Geolocator.distanceBetween(
             pos.latitude,
@@ -82,10 +125,18 @@ class _ActivityScreenState extends State<ActivityScreen> {
           final recentlyNotified = lastTime != null &&
               now.difference(lastTime).inMinutes < 30;
 
-          if (distance <= 20 && !recentlyNotified) {
+          if (distance <= 100 ) { //&& !recentlyNotified
+            debugPrint("✅ Close to ${event.title} (${distance.toStringAsFixed(1)}m)");
             _nearbyEvent = event;
             _lastNotified[event.id] = now;
+            debugPrint('[NOTIF] Proximity trigger ran');
+            if (mounted) {
+              _askUserForFeedback(event);
+            }
             await _sendFeedbackNotification(event);
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Notification sent for ${event.title}')),
+            );
             break;
           }
         }
@@ -106,23 +157,36 @@ class _ActivityScreenState extends State<ActivityScreen> {
       final androidInfo = await DeviceInfoPlugin().androidInfo;
       if (androidInfo.version.sdkInt >= 33) {
         final status = await Permission.notification.request();
-        if (!status.isGranted) {
-          debugPrint("Notification permission not granted.");
+        _notificationsBlocked = !status.isGranted;
+        if (_notificationsBlocked) {
+          debugPrint("Notifications are blocked.");
           return;
         }
       }
     }
 
     const settings = InitializationSettings(
-      android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+      android: AndroidInitializationSettings('@mipmap/ic_launcher'), // fallback to the default launcher icon
       iOS: DarwinInitializationSettings(),
     );
 
+
     await plugin.initialize(settings, onDidReceiveNotificationResponse: (res) {
-      if (_nearbyEvent != null) {
-        _askUserForFeedback(_nearbyEvent!);
-      }
     });
+
+    await plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()?.createNotificationChannel(
+      const AndroidNotificationChannel(
+        'busyness_feedback',
+        'Event Feedback',
+        description: 'Notifications asking for event feedback',
+        importance: Importance.high,
+      ),
+    );
+    debugPrint("[NOTIF] Init complete: blocked = $_notificationsBlocked");
+
+    if (_nearbyEvent != null) {
+      _askUserForFeedback(_nearbyEvent!);
+    }
   }
 
   void _askUserForFeedback(Event event) {
@@ -134,24 +198,107 @@ class _ActivityScreenState extends State<ActivityScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             const Text('How busy is it?'),
-            for (final level in ['Quiet', 'Moderate', 'Busy'])
-              ElevatedButton(
-                onPressed: () {
-                  FirebaseFirestore.instance.collection('event_feedback').add({
+            ...['Quiet', 'Moderate', 'Busy'].map((level) {
+              return ElevatedButton(
+                onPressed: () async {
+                  Navigator.of(context).pop(); // ✅ Closes immediately
+
+                  final pos = await Geolocator.getCurrentPosition();
+
+                  const maxDistance = 60.0;
+                  final mergedRef = FirebaseFirestore.instance.collection('merged_clusters');
+                  final snapshot = await mergedRef.get();
+
+                  String? clusterId;
+                  double minDistance = double.infinity;
+
+                  for (var doc in snapshot.docs) {
+                    final data = doc.data();
+                    final double lat = data['lat'];
+                    final double lng = data['lng'];
+
+                    final distance = Geolocator.distanceBetween(
+                      pos.latitude, pos.longitude, lat, lng,
+                    );
+
+                    if (distance < minDistance && distance <= maxDistance) {
+                      minDistance = distance;
+                      clusterId = doc.id;
+                    }
+                  }
+
+                  // 🌱 Create new cluster if none found
+                  if (clusterId == null) {
+                    final newDoc = await mergedRef.add({
+                      'lat': pos.latitude,
+                      'lng': pos.longitude,
+                      'level': level, // initial level based on feedback
+                      'createdFrom': 'app',
+                      'updated': Timestamp.now(),
+                    });
+                    clusterId = newDoc.id;
+                    debugPrint("🆕 New cluster created: $clusterId");
+                  }
+
+                  await FirebaseFirestore.instance.collection('event_feedback').add({
                     'eventId': event.id,
                     'timestamp': Timestamp.now(),
                     'busyness': level,
                     'userId': FirebaseAuth.instance.currentUser?.uid,
+                    'clusterId': clusterId,
                   });
-                  Navigator.of(context).pop();
+
+                  debugPrint("✅ Feedback submitted for $clusterId ($level)");
                 },
                 child: Text(level),
-              ),
+              );
+            }).toList(),
           ],
         ),
       ),
     );
   }
+
+
+
+  void _sendTestNotification() async {
+    debugPrint("Trying to send test notification...");
+
+    if (_notificationsBlocked) {
+      debugPrint("Blocked: Notification permission not granted.");
+      return;
+    }
+
+    final plugin = FlutterLocalNotificationsPlugin();
+
+    const details = NotificationDetails(
+      android: AndroidNotificationDetails(
+        'busyness_feedback',
+        'Event Feedback',
+        icon: '@mipmap/ic_launcher',
+        importance: Importance.high,
+        priority: Priority.high,
+      ),
+      iOS: DarwinNotificationDetails(),
+    );
+
+
+    try {
+      await plugin.show(
+        999,
+        'Test Notification',
+        'This is a test notification to verify your setup.',
+        details,
+      );
+
+
+      debugPrint("✅ Test notification sent.");
+    } catch (e) {
+      debugPrint("❌ Failed to send test notification: $e");
+    }
+  }
+
+
 
 
 
@@ -162,7 +309,6 @@ class _ActivityScreenState extends State<ActivityScreen> {
 
       setState(() => _userPosition = pos);
       await _logUserLocation(pos);
-      await _loadPopularityCircles();
     } catch (e) {
       setState(() => _error = e.toString());
     }
@@ -176,6 +322,45 @@ class _ActivityScreenState extends State<ActivityScreen> {
       'lng': pos.longitude,
     });
   }
+
+  void _handleLongPress(LatLng tappedPoint) {
+    const double maxDistance = 60; // Match cluster radius
+    Circle? nearest;
+    double minDistance = double.infinity;
+
+    for (final circle in _popularityCircles) {
+      final distance = Geolocator.distanceBetween(
+        tappedPoint.latitude,
+        tappedPoint.longitude,
+        circle.center.latitude,
+        circle.center.longitude,
+      );
+
+      if (distance < minDistance && distance <= maxDistance) {
+        minDistance = distance;
+        nearest = circle;
+      }
+    }
+
+    if (nearest != null) {
+      final clusterId = nearest.circleId.value;
+      final match = FirebaseFirestore.instance
+          .collection('popularity_clusters')
+          .doc(clusterId)
+          .get();
+
+      match.then((doc) {
+        if (doc.exists) {
+          final count = doc['count'];
+          final level = doc['level'];
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Cluster: $count pings ($level)')),
+          );
+        }
+      });
+    }
+  }
+
 
   Future<Position?> _handleLocationPermission() async {
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
@@ -225,99 +410,53 @@ class _ActivityScreenState extends State<ActivityScreen> {
     );
   }
 
-  Future<void> _loadPopularityCircles() async {
-    final thirtyMinutesAgo = Timestamp.fromMillisecondsSinceEpoch(
-      DateTime.now().millisecondsSinceEpoch - (30 * 60 * 1000),
-    );
+  void _subscribeToClusterUpdates() {
+    FirebaseFirestore.instance
+        .collection('merged_clusters')
+        .snapshots()
+        .listen((snapshot) {
+      final Set<Circle> circles = {};
 
-    final snapshot = await FirebaseFirestore.instance
-        .collection('location_logs')
-        .where('timestamp', isGreaterThan: thirtyMinutesAgo)
-        .get();
+      for (final doc in snapshot.docs) {
+        final data = doc.data();
+        final lat = data['lat'] as double;
+        final lng = data['lng'] as double;
+        final level = data['level'] as String;
 
+        Color color;
+        switch (level) {
+          case 'Quiet':
+            color = Colors.green.withAlpha(77);
+            break;
+          case 'Moderate':
+            color = Colors.orange.withAlpha(120);
+            break;
+          case 'Busy':
+            color = Colors.red.withAlpha(140);
+            break;
+          default:
+            color = Colors.white.withAlpha(0); // fallback
+        }
 
-    final logs = snapshot.docs
-        .map((doc) => doc.data())
-        .where((data) =>
-    data.containsKey('lat') &&
-        data.containsKey('lng') &&
-        data.containsKey('timestamp'))
-        .toList();
+        circles.add(Circle(
+          circleId: CircleId(doc.id),
+          center: LatLng(lat, lng),
+          radius: 60,
+          fillColor: color,
+          strokeColor: Colors.transparent,
+        ));
+      }
 
-    final now = Timestamp.now();
-    final recentLogs = logs.where((data) {
-      final timestamp = data['timestamp'] as Timestamp;
-      return now.seconds - timestamp.seconds <= 30 * 60;
-    }).toList();
+      setState(() {
+        _popularityCircles = {
+          ..._popularityCircles,
+          ...circles, // overlays matching IDs will fade smoothly
+        };
+      });
 
-    // Convert to LatLng
-    final List<LatLng> points = recentLogs
-        .map((e) => LatLng(e['lat'] as double, e['lng'] as double))
-        .toList();
-
-    final Set<Circle> circles = _buildGroupedCircles(points, 50); // 50m group distance
-
-    setState(() {
-      _popularityCircles = circles;
-      _loading = false;
     });
   }
 
-
-  Set<Circle> _buildGroupedCircles(List<LatLng> points, double groupDistance) {
-    List<List<LatLng>> groups = [];
-
-    for (final point in points) {
-      bool added = false;
-      for (final group in groups) {
-        if (group.any((member) =>
-        Geolocator.distanceBetween(
-          point.latitude,
-          point.longitude,
-          member.latitude,
-          member.longitude,
-        ) <= groupDistance)) {
-          group.add(point);
-          added = true;
-          break;
-        }
-      }
-      if (!added) {
-        groups.add([point]);
-      }
-    }
-
-    int idCounter = 0;
-    Set<Circle> result = {};
-
-    for (final group in groups) {
-      final avgLat = group.map((p) => p.latitude).reduce((a, b) => a + b) / group.length;
-      final avgLng = group.map((p) => p.longitude).reduce((a, b) => a + b) / group.length;
-
-      Color color;
-      final level = group.length;
-
-      if (level < 10) {
-        color = Colors.white.withAlpha(0);
-      } else if (level < 30) {
-        color = Colors.green.withAlpha(77);
-      } else if (level < 150) {
-        color = Colors.orange.withAlpha(120);
-      } else {
-        color = Colors.red.withAlpha(140);
-      }
-
-      result.add(Circle(
-        circleId: CircleId('group_${idCounter++}'),
-        center: LatLng(avgLat, avgLng),
-        radius: 60,
-        fillColor: color,
-        strokeColor: Colors.transparent,
-      ));
-    }
-
-    return result;
-  }
 
 
   Widget _buildLegend() {
@@ -340,6 +479,36 @@ class _ActivityScreenState extends State<ActivityScreen> {
       ),
     );
   }
+
+  Widget _buildNotificationBanner() {
+    if (!_notificationsBlocked) return const SizedBox.shrink();
+
+    return Positioned(
+      top: 70,
+      left: 16,
+      right: 16,
+      child: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: Colors.red.withOpacity(0.8),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          children: const [
+            Icon(Icons.warning, color: Colors.white),
+            SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Notifications are blocked. Enable them in system settings.',
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -390,6 +559,7 @@ class _ActivityScreenState extends State<ActivityScreen> {
                       _selectedEventPosition = null;
                     });
                   },
+                  onLongPress: _handleLongPress,
                 ),
                 if (_selectedEvent != null)
                   Positioned(
@@ -417,6 +587,17 @@ class _ActivityScreenState extends State<ActivityScreen> {
                     ),
                   ),
                 _buildLegend(),
+                _buildNotificationBanner(),
+                Positioned(
+                  bottom: 80,
+                  right: 16,
+                  child: FloatingActionButton.extended(
+                    onPressed: _sendTestNotification,
+                    label: const Text('Test Notification'),
+                    icon: const Icon(Icons.notifications),
+                    backgroundColor: Colors.blue,
+                  ),
+                ),
               ],
             ),
           ),
