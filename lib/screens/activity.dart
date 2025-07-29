@@ -54,7 +54,7 @@ class _ActivityScreenState extends State<ActivityScreen> {
       await _checkProximityToEvent();
 
       // ✅ THEN CONTINUE WITH THE TIMER
-      Timer.periodic(const Duration(seconds: 30), (_) => _checkProximityToEvent());
+      Timer.periodic(const Duration(minutes: 30), (_) => _checkProximityToEvent());
     }
   }
 
