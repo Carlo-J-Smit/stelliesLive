@@ -241,13 +241,19 @@ class _ActivityScreenState extends State<ActivityScreen> {
                     debugPrint("🆕 New cluster created: $clusterId");
                   }
 
-                  await FirebaseFirestore.instance.collection('event_feedback').add({
-                    'eventId': event.id,
-                    'timestamp': Timestamp.now(),
-                    'busyness': level,
-                    'userId': FirebaseAuth.instance.currentUser?.uid,
-                    'clusterId': clusterId,
-                  });
+                  try {
+                    await FirebaseFirestore.instance.collection('event_feedback').add({
+                      'eventId': event.id,
+                      'timestamp': Timestamp.now(),
+                      'busyness': level,
+                      'userId': FirebaseAuth.instance.currentUser?.uid,
+                      'clusterId': clusterId,
+                    });
+                    debugPrint("✅ Feedback submitted for $clusterId ($level)");
+                  } catch (e) {
+                    debugPrint("❌ Firestore write failed: $e");
+                  }
+
 
                   debugPrint("✅ Feedback submitted for $clusterId ($level)");
                 },
