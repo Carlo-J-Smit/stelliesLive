@@ -1,5 +1,4 @@
 import { onDocumentCreated } from "firebase-functions/v2/firestore";
-import { onPubSubPublished } from "firebase-functions/v2/pubsub";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
 
@@ -25,17 +24,16 @@ function inferLevel(count: number): string {
   return "Busy";
 }
 
-// ✅ Firestore-triggered function
-export const updatePopularityClusters = onDocumentCreated(
+export const handleNewLocationLog = onDocumentCreated(
   {
     document: "location_logs/{logId}",
-    region: "africa-south1"
+    region: "africa-south1",
   },
   async (event) => {
     logger.log("📍 New location log created. Recomputing clusters...");
 
+    // --- Step 1: Fetch recent location logs (past 30 mins)
     const thirtyMinutesAgo = admin.firestore.Timestamp.fromMillis(Date.now() - 30 * 60 * 1000);
-
     const snapshot = await db.collection("location_logs")
       .where("timestamp", ">=", thirtyMinutesAgo)
       .get();
@@ -43,6 +41,7 @@ export const updatePopularityClusters = onDocumentCreated(
     const logs = snapshot.docs.map(doc => doc.data())
       .filter(log => log.lat && log.lng);
 
+    // --- Step 2: Form spatial groups
     const groups: { lat: number; lng: number }[][] = [];
 
     logs.forEach(log => {
@@ -62,8 +61,9 @@ export const updatePopularityClusters = onDocumentCreated(
       if (!added) groups.push([point]);
     });
 
-    const batch = db.batch();
+    // --- Step 3: Write clusters to Firestore
     const clusterRef = db.collection("popularity_clusters");
+    const batch = db.batch();
 
     const existing = await clusterRef.get();
     existing.docs.forEach(doc => batch.delete(doc.ref));
@@ -72,8 +72,7 @@ export const updatePopularityClusters = onDocumentCreated(
       const avgLat = group.reduce((sum, p) => sum + p.lat, 0) / group.length;
       const avgLng = group.reduce((sum, p) => sum + p.lng, 0) / group.length;
 
-      const id = `cluster_${index}`;
-      batch.set(clusterRef.doc(id), {
+      batch.set(clusterRef.doc(`cluster_${index}`), {
         lat: avgLat,
         lng: avgLng,
         count: group.length,
@@ -82,76 +81,29 @@ export const updatePopularityClusters = onDocumentCreated(
       });
     });
 
-    await batch.commit();
-    logger.log("✅ Clusters updated successfully.");
-  }
-);
-
-// ✅ Pub/Sub: decay clusters
-export const decayClusterWeights = onPubSubPublished(
-  {
-    topic: "decay-clusters-topic",
-    region: "africa-south1"
-  },
-  async () => {
-    const snapshot = await db.collection("popularity_clusters").get();
-    const batch = db.batch();
-
-    snapshot.docs.forEach(doc => {
-      const data = doc.data();
-      const current = data.count || 0;
-      const decayed = Math.max(0, current - 1);
-
-      batch.update(doc.ref, {
-        count: decayed,
-        level: inferLevel(decayed),
-        updated: admin.firestore.Timestamp.now()
-      });
-    });
-
-    await batch.commit();
-    logger.log("✅ Decayed cluster weights.");
-  }
-);
-
-// ✅ Pub/Sub: merge with feedback
-export const mergeClusterWithFeedback = onPubSubPublished(
-  {
-    topic: "merge-feedback-topic",
-    region: "africa-south1"
-  },
-  async () => {
-    const now = Date.now();
-    const cutoff = admin.firestore.Timestamp.fromMillis(now - 30 * 60 * 1000);
-
-    const clusters = await db.collection("popularity_clusters").get();
-    const feedbacks = await db.collection("event_feedback")
-      .where("timestamp", ">=", cutoff)
+    // --- Step 4: Merge with feedback
+    const feedbackSnap = await db.collection("event_feedback")
+      .where("timestamp", ">=", thirtyMinutesAgo)
       .get();
 
     const feedbackMap = new Map<string, number[]>();
-
-    feedbacks.docs.forEach(doc => {
+    feedbackSnap.docs.forEach(doc => {
       const data = doc.data();
       const level = data.busyness;
       const score = level === "Quiet" ? 0 : level === "Moderate" ? 1 : 2;
-
       const clusterId = data.clusterId;
       if (!feedbackMap.has(clusterId)) feedbackMap.set(clusterId, []);
       feedbackMap.get(clusterId)!.push(score);
     });
 
-    const batch = db.batch();
-    const output = db.collection("merged_clusters");
-
-    const mergedSnap = await output.get();
+    const mergedRef = db.collection("merged_clusters");
+    const mergedSnap = await mergedRef.get();
     mergedSnap.forEach(doc => batch.delete(doc.ref));
 
-    for (const cluster of clusters.docs) {
-      const data = cluster.data();
-      const clusterId = cluster.id;
+    for (const doc of (await clusterRef.get()).docs) {
+      const data = doc.data();
+      const clusterId = doc.id;
       const locationCount = data.count || 0;
-
       const locationScore = locationCount < 30 ? 0 : locationCount < 150 ? 1 : 2;
       const feedbacks = feedbackMap.get(clusterId) ?? [];
 
@@ -165,12 +117,9 @@ export const mergeClusterWithFeedback = onPubSubPublished(
         : locationScore;
 
       const weighted = 0.3 * locationScore + 0.7 * feedbackScore;
+      const finalLevel = weighted >= 1.5 ? "Busy" : weighted >= 0.5 ? "Moderate" : "Quiet";
 
-      let finalLevel = "Quiet";
-      if (weighted >= 1.5) finalLevel = "Busy";
-      else if (weighted >= 0.5) finalLevel = "Moderate";
-
-      batch.set(output.doc(clusterId), {
+      batch.set(mergedRef.doc(clusterId), {
         lat: data.lat,
         lng: data.lng,
         level: finalLevel,
@@ -178,35 +127,23 @@ export const mergeClusterWithFeedback = onPubSubPublished(
       });
     }
 
-    await batch.commit();
-    logger.log("✅ Merged clusters updated with feedback weighting.");
-  }
-);
+    // --- Step 5: Delete stale logs and feedbacks
+    const oldCutoffDate = new Date(Date.now() - 30 * 60 * 1000);
 
-// ✅ Pub/Sub: delete old logs
-export const deleteOldLogs = onPubSubPublished(
-  {
-    topic: "delete-logs-topic",
-    region: "africa-south1"
-  },
-  async () => {
-    const cutoff = Date.now() - 30 * 60 * 1000;
-    const cutoffDate = new Date(cutoff);
-
-    const logsSnap = await db.collection("location_logs")
-      .where("timestamp", "<", cutoffDate)
+    const oldLogs = await db.collection("location_logs")
+      .where("timestamp", "<", oldCutoffDate)
       .get();
 
-    const feedbackSnap = await db.collection("event_feedback")
-      .where("timestamp", "<", cutoffDate)
+    const oldFeedback = await db.collection("event_feedback")
+      .where("timestamp", "<", oldCutoffDate)
       .get();
 
-    const batch = db.batch();
-    logsSnap.forEach(doc => batch.delete(doc.ref));
-    feedbackSnap.forEach(doc => batch.delete(doc.ref));
-    await batch.commit();
+    oldLogs.forEach(doc => batch.delete(doc.ref));
+    oldFeedback.forEach(doc => batch.delete(doc.ref));
 
-    logger.log("🗑️ Deleted old logs and feedback.");
+    // --- Final commit
+    await batch.commit();
+    logger.log("✅ Clusters updated, merged, and stale data cleaned up.");
   }
 );
 
