@@ -14,6 +14,8 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'services/notification_service.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import '../screens/about_screen.dart';
+
 
 
 Future<void> _requestNotificationPermission() async {
@@ -90,6 +92,7 @@ class MyApp extends StatelessWidget {
       home: const EventsScreen(),
       routes: {
         '/admin': (context) => AdminPage(),
+        '/about': (context) => const AboutScreen(),
       },
     );
   }
