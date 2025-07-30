@@ -73,6 +73,7 @@ class _ActivityScreenState extends State<ActivityScreen> {
 
 
   Future<void> _sendFeedbackNotification(Event event) async {
+    return;
     debugPrint('[NOTIF] Trying to send');
     final plugin = FlutterLocalNotificationsPlugin();
     const details = NotificationDetails(
@@ -134,9 +135,9 @@ class _ActivityScreenState extends State<ActivityScreen> {
               _askUserForFeedback(event);
             }
             await _sendFeedbackNotification(event);
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Notification sent for ${event.title}')),
-            );
+            // ScaffoldMessenger.of(context).showSnackBar(
+            //   SnackBar(content: Text('Notification sent for ${event.title}')),
+            // );
             break;
           }
         }
@@ -587,17 +588,17 @@ class _ActivityScreenState extends State<ActivityScreen> {
                     ),
                   ),
                 _buildLegend(),
-                _buildNotificationBanner(),
-                Positioned(
-                  bottom: 80,
-                  right: 16,
-                  child: FloatingActionButton.extended(
-                    onPressed: _sendTestNotification,
-                    label: const Text('Test Notification'),
-                    icon: const Icon(Icons.notifications),
-                    backgroundColor: Colors.blue,
-                  ),
-                ),
+                // _buildNotificationBanner(),
+                // Positioned(
+                //   bottom: 80,
+                //   right: 16,
+                //   child: FloatingActionButton.extended(
+                //     onPressed: _sendTestNotification,
+                //     label: const Text('Test Notification'),
+                //     icon: const Icon(Icons.notifications),
+                //     backgroundColor: Colors.blue,
+                //   ),
+                // ),
               ],
             ),
           ),

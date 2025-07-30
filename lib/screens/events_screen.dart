@@ -7,6 +7,7 @@ import '../widgets/sidebar.dart';
 import '../widgets/today_event_rotator.dart';
 
 
+
 class EventsScreen extends StatefulWidget {
   const EventsScreen({super.key});
 

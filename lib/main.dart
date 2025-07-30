@@ -12,6 +12,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_performance/firebase_performance.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'services/notification_service.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 
 
 Future<void> _requestNotificationPermission() async {
@@ -19,6 +21,7 @@ Future<void> _requestNotificationPermission() async {
     await Permission.notification.request();
   }
 }
+
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -33,8 +36,9 @@ void main() async {
   // ✅ Initialize Firebase Performance
   FirebasePerformance performance = FirebasePerformance.instance;
 
-  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
-  FlutterLocalNotificationsPlugin();
+  //Notifications
+  await NotificationService.init();
+
 
 // // Step 1: Create Android Notification Channel
 //   await _requestNotificationPermission();
