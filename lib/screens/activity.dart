@@ -33,6 +33,8 @@ class _ActivityScreenState extends State<ActivityScreen> {
   Event? _nearbyEvent;
   final Map<String, DateTime> _lastNotified = {};
   bool _notificationsBlocked = false;
+  String? _mapStyle;
+
 
 
 
@@ -54,7 +56,7 @@ class _ActivityScreenState extends State<ActivityScreen> {
       await _checkProximityToEvent();
 
       // ✅ THEN CONTINUE WITH THE TIMER
-      Timer.periodic(const Duration(minutes: 30), (_) => _checkProximityToEvent());
+      // Timer.periodic(const Duration(minutes: 30), (_) => _checkProximityToEvent());
     }
   }
 
@@ -63,11 +65,19 @@ class _ActivityScreenState extends State<ActivityScreen> {
     super.initState();
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
+      try {
+        _mapStyle = await DefaultAssetBundle.of(context).loadString('assets/map_styles.json');//remove s from styles if you want ot enable
+      } catch (e) {
+        debugPrint('⚠️ Failed to load map style: $e');
+        _mapStyle = null;
+      }
+
       await _initNotifications();
       await _initActivity();
     });
 
     _subscribeToClusterUpdates();
+
   }
 
 
@@ -539,9 +549,12 @@ class _ActivityScreenState extends State<ActivityScreen> {
                   markers: {},
                   circles: _showHeatmap ? _popularityCircles : {},
                   myLocationEnabled: true,
-                  myLocationButtonEnabled: true,
+                  myLocationButtonEnabled: false,
                   onMapCreated: (controller) {
                     _mapController = controller;
+                    if (_mapStyle != null) {
+                      _mapController.setMapStyle(_mapStyle);
+                    }
                     _mapController.animateCamera(
                       CameraUpdate.newCameraPosition(
                         CameraPosition(
