@@ -2,11 +2,14 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
      <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+     <uses-permission android:name="android.permission.INTERNET"/>
 
     <application
         android:label="stellieslive"
+        android:usesCleartextTraffic="true"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -37,6 +40,11 @@
             
         <meta-data android:name="com.google.android.geo.API_KEY"
            android:value="AIzaSyA4Bwu0nrpXkhO7Ud3zNRzZ2EyWQlB5FNg"/>
+           
+        <meta-data
+          android:name="com.google.android.gms.ads.APPLICATION_ID"
+          android:value="ca-app-pub-5944591232566414~3111106770"/>  
+
            
             
         <meta-data

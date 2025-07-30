@@ -123,7 +123,7 @@ class _NavbarState extends State<Navbar> {
         if (isAdmin)
           _navButton(
             context,
-            'Business Login',
+            'Business Management',
             () {
               Navigator.push(
                 context,
@@ -198,7 +198,7 @@ class _NavbarState extends State<Navbar> {
             if (_user != null)
               const PopupMenuItem(value: 'Logout', child: Text('Logout')),
             if (isAdmin)
-              const PopupMenuItem(value: 'Admin', child: Text('Business Login')),
+              const PopupMenuItem(value: 'Admin', child: Text('Business Management')),
           ],
         ),
       ],

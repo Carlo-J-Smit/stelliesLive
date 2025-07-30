@@ -15,6 +15,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'services/notification_service.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import '../screens/about_screen.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 
 
@@ -27,6 +28,10 @@ Future<void> _requestNotificationPermission() async {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  //ads
+  MobileAds.instance.initialize();
+
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   // Enable Firestore caching (good!)
@@ -40,6 +45,8 @@ void main() async {
 
   //Notifications
   await NotificationService.init();
+
+
 
 
 // // Step 1: Create Android Notification Channel

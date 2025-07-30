@@ -45,12 +45,12 @@ class AdCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        '🔥 Discover More Events',
+                        '🔥 Consider Supporting Us',
                         style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                       ),
                       SizedBox(height: 4),
                       Text(
-                        'Sponsored by StelliesLive',
+                        'Buy Me a Coffee',
                         style: TextStyle(color: Colors.grey),
                       ),
                     ],

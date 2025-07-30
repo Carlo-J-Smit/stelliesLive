@@ -5,7 +5,8 @@ import '../widgets/event_card.dart';
 import '../widgets/nav_bar.dart';
 import '../widgets/sidebar.dart';
 import '../widgets/today_event_rotator.dart';
-import '../widgets/ad_card.dart';
+import '../widgets/native_ad_card.dart';
+import '../widgets/trending_ad_rotator.dart';
 
 
 
@@ -71,9 +72,7 @@ class _EventsScreenState extends State<EventsScreen> {
 
       // Add ad after every 4 events (you can tweak this)
       if ((i + 1) % 4 == 0) {
-        widgets.add(const AdCard(
-          sponsorUrl: 'https://stellieslive.web.app',
-        ));
+        widgets.add(const NativeAdCard());
       }
     }
 
@@ -184,7 +183,11 @@ class _EventsScreenState extends State<EventsScreen> {
                                   : const EdgeInsets.all(16),
                               children: [
                                 if (todayEvents.isNotEmpty)
-                                  TodayEventRotator(events: todayEvents),
+                                  TodayEventRotator(events: todayEvents)
+                                else
+                                  TrendingAdRotator(),
+
+
                                 const SizedBox(height: 20),
 
                                 Builder(
