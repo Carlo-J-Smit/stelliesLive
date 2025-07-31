@@ -44,6 +44,11 @@
         <meta-data
           android:name="com.google.android.gms.ads.APPLICATION_ID"
           android:value="ca-app-pub-5944591232566414~3111106770"/>  
+          
+        <meta-data
+          android:name="com.google.android.gms.ads.DELAY_APP_MEASUREMENT_INIT"
+          android:value="true"/>
+
 
            
             
