@@ -10,6 +10,8 @@ import 'dart:async';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:io' show Platform;
 import '../models/event.dart';
+import 'package:url_launcher/url_launcher.dart';
+
 
 
 
@@ -30,6 +32,19 @@ class _NavbarState extends State<Navbar> {
     super.initState();
     _authSub = FirebaseAuth.instance.authStateChanges().listen(_onAuthChanged);
   }
+
+  Future<void> _launchFeedbackForm() async {
+    const url = 'https://docs.google.com/forms/d/e/1FAIpQLSe1tEAuqDT4VEjqggP633DLwzqsI3xpEKaP_su4AI_K4KqooA/viewform?usp=dialog';
+
+    if (await canLaunchUrl(Uri.parse(url))) {
+      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not open feedback form.')),
+      );
+    }
+  }
+
 
   Future<void> _onAuthChanged(User? user) async {
     if (!mounted) return;
@@ -132,6 +147,9 @@ class _NavbarState extends State<Navbar> {
             },
             color: Colors.yellow,
           ),
+        _navButton(context, 'Feedback', _launchFeedbackForm),
+
+
       ],
     );
   }
@@ -188,6 +206,10 @@ class _NavbarState extends State<Navbar> {
                   MaterialPageRoute(builder: (_) => const AdminPage()),
                 );
                 break;
+              case 'Feedback':
+                _launchFeedbackForm();
+                break;
+
             }
           },
           itemBuilder: (context) => [
@@ -199,6 +221,7 @@ class _NavbarState extends State<Navbar> {
               const PopupMenuItem(value: 'Logout', child: Text('Logout')),
             if (isAdmin)
               const PopupMenuItem(value: 'Admin', child: Text('Business Management')),
+            const PopupMenuItem(value: 'Feedback', child: Text('Feedback')),
           ],
         ),
       ],

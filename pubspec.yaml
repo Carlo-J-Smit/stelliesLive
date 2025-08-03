@@ -1,5 +1,5 @@
 name: stellieslive
-description: "A new Flutter project."
+description: "Discover the best events, student nights and live music happening in Stellenbosch every week. Powered by the StelliesLive community."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -50,6 +50,8 @@ dependencies:
   google_mobile_ads: ^5.0.0
   shared_preferences: ^2.2.2
   visibility_detector: ^0.4.0+2
+
+
   
 
 
@@ -83,7 +85,7 @@ flutter_launcher_icons:
   image_path: "assets/logo/icon1.png"
 
 flutter_native_splash:
-  color: "#6D0919" # or background_image
+  color: "#ffffff" # or background_image
   image: assets/splash/splash.png
   #branding: assets/branding.png # optional small logo at bottom
   android_gravity: center
