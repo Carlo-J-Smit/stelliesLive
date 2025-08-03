@@ -73,13 +73,24 @@ dev_dependencies:
   integration_test:
     sdk: flutter
   flutter_launcher_icons: ^0.13.1
+  flutter_native_splash: ^2.3.10
   
 
 
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: "assets/logo/icon2.png"  # <-- path to your new logo
+  image_path: "assets/logo/icon1.png"
+
+flutter_native_splash:
+  color: "#6D0919" # or background_image
+  image: assets/splash/splash.png
+  #branding: assets/branding.png # optional small logo at bottom
+  android_gravity: center
+  ios_content_mode: center
+  fullscreen: true
+  
+  # <-- path to your new logo
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
 
@@ -95,6 +106,7 @@ flutter:
   assets:
       - assets/map_style.json
       - assets/logo/
+      - assets/splash/splash.png
      #- assets/map_style.json
 
   # An image asset can refer to one or more resolution-specific "variants", see

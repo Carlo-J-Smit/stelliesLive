@@ -6,12 +6,12 @@ plugins {
 }
 
 android {
-    namespace = "com.example.stellieslive.stellieslive"
+    namespace = "com.stellieslive.app"
     compileSdk = 35
     ndkVersion = "27.0.12077973"
 
     defaultConfig {
-        applicationId = "com.example.stellieslive.stellieslive"
+        applicationId = "com.stellieslive.app"
         minSdk = 23
         targetSdk = 35
         versionCode = 1
