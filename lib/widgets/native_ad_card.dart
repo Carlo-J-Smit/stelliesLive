@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import '../constants/colors.dart'; // Make sure AppColors.primaryRed is defined
 import 'ad_card.dart'; // Needed for fallback
-
 class NativeAdCard extends StatefulWidget {
   const NativeAdCard({super.key});
 
@@ -88,7 +87,7 @@ class _NativeAdCardState extends State<NativeAdCard> {
           const SizedBox(height: 8),
           SizedBox(
             height: 100,
-            child: AdWidget(ad: _nativeAd!),
+              child: AdWidget(ad: _nativeAd!),
           ),
         ],
       ),

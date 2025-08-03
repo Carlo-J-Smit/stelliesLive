@@ -48,6 +48,9 @@ class _ActivityScreenState extends State<ActivityScreen> {
     setState(() => _loading = false); // after getting location
 
     _logUserLocation(pos);
+
+    await _checkProximityToEvent();
+
   }
 
   @override

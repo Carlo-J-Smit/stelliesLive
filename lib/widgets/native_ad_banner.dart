@@ -156,64 +156,64 @@ class _NativeAdBannerState extends State<NativeAdBanner>
 
     return SafeArea(
       bottom: true,
-        child: AnimatedSlide(
+      child: AnimatedSlide(
+        duration: const Duration(milliseconds: 2400),
+        offset: _visible ? Offset.zero : const Offset(0, 1),
+        curve: Curves.easeOutCubic,
+        child: AnimatedSwitcher(
           duration: const Duration(milliseconds: 2400),
-          offset: _visible ? Offset.zero : const Offset(0, 1),
-          curve: Curves.easeOutCubic,
-          child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 2400),
-            switchInCurve: Curves.easeInOutCubic,
-            switchOutCurve: Curves.easeInOutCubic,
-            child: Padding(
-              key: ValueKey(_currentIndex),
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: Row(
-                children: [
-                  // 👇 The ad box is now only 95% of the width
-                  Expanded(
-                    flex: 85,
-                    child: Material(
-                      elevation: 6,
-                      borderRadius: BorderRadius.circular(16),
-                      child: Stack(
-                        children: [
-                          // AD CONTENT
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(16),
+          switchInCurve: Curves.easeInOutCubic,
+          switchOutCurve: Curves.easeInOutCubic,
+          child: Padding(
+            key: ValueKey(_currentIndex),
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Row(
+              children: [
+                // 👇 The ad box is now only 95% of the width
+                Expanded(
+                  flex: 85,
+                  child: Material(
+                    elevation: 6,
+                    borderRadius: BorderRadius.circular(16),
+                    child: Stack(
+                      children: [
+                        // AD CONTENT
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(16),
+                          child: Container(
+                            height: 100,
+                            color: Colors.white,
+                            child: currentAd,
+                          ),
+                        ),
+                        // ❌ CLOSE BUTTON
+                        Positioned(
+                          top: 4,
+                          right: 4,
+                          child: GestureDetector(
+                            onTap: _dismiss,
                             child: Container(
-                              height: 100,
-                              color: Colors.white,
-                              child: currentAd,
-                            ),
-                          ),
-                          // ❌ CLOSE BUTTON
-                          Positioned(
-                            top: 4,
-                            right: 4,
-                            child: GestureDetector(
-                              onTap: _dismiss,
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  color: Colors.black.withOpacity(0.6),
-                                  shape: BoxShape.circle,
-                                ),
-                                padding: const EdgeInsets.all(4),
-                                child: const Icon(Icons.close, size: 16, color: Colors.white),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withOpacity(0.6),
+                                shape: BoxShape.circle,
                               ),
+                              padding: const EdgeInsets.all(4),
+                              child: const Icon(Icons.close, size: 16, color: Colors.white),
                             ),
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
-                  const Spacer(flex: 15), // 👈 This shrinks the overall box from the right
-                ],
-              ),
+                ),
+                const Spacer(flex: 15), // 👈 This shrinks the overall box from the right
+              ],
             ),
-
-
           ),
+
+
         ),
+      ),
     );
   }
 }
