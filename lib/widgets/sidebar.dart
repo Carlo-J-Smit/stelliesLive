@@ -118,6 +118,28 @@ class Sidebar extends StatelessWidget {
                 ),
               ),
             ),
+            const Divider(color: AppColors.primaryRed, thickness: 1),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                TextButton.icon(
+                  onPressed: () {
+                    const url =
+                        'https://docs.google.com/forms/d/e/1FAIpQLSe1tEAuqDT4VEjqggP633DLwzqsI3xpEKaP_su4AI_K4KqooA/viewform?usp=dialog';
+                    launchUrl(Uri.parse(url));
+                  },
+                  icon: const Icon(
+                    Icons.report_problem_outlined,
+                    color: AppColors.primaryRed,
+                  ),
+                  label: const Text(
+                    'Incorrect Event?',
+                    style: TextStyle(color: AppColors.primaryRed),
+                  ),
+                ),
+              ],
+            ),
+
 
             //const SizedBox(height: 5),
             const Divider(color: AppColors.primaryRed, thickness: 1),

@@ -3,6 +3,9 @@
 import 'package:flutter/material.dart';
 import '../models/event.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:intl/intl.dart';
+import '../constants/colors.dart';
+
 
 
 class EventCard extends StatefulWidget {
@@ -20,6 +23,12 @@ class _EventCardState extends State<EventCard> {
   void _toggleExpanded() {
     setState(() => _isExpanded = !_isExpanded);
   }
+
+  String _formatPrice(double price) {
+    final formatter = NumberFormat.currency(symbol: 'R', decimalDigits: 0);
+    return formatter.format(price);
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -80,6 +89,16 @@ class _EventCardState extends State<EventCard> {
                             : _formatDateTime(event.dateTime),
                         style: const TextStyle(color: Colors.grey),
                       ),
+                      const SizedBox(height: 2),
+                      if (event.price != null)
+                        Text(
+                          event.price! > 0 ? _formatPrice(event.price!) : 'Free',
+                          style: TextStyle(
+                            color: event.price! > 0 ? Colors.red : Colors.blueGrey,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+
                     ],
                   ),
                 ),
@@ -100,6 +119,7 @@ class _EventCardState extends State<EventCard> {
                 style: const TextStyle(color: Colors.black87),
               ),
             ],
+
 
 
 

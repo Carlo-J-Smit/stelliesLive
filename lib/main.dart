@@ -16,6 +16,10 @@ import 'services/notification_service.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import '../screens/about_screen.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'dart:async'; // This gives you runZonedGuarded
+import 'package:flutter/foundation.dart' show kIsWeb;
+
+
 
 
 
@@ -24,15 +28,24 @@ Future<void> _requestNotificationPermission() async {
     await Permission.notification.request();
   }
 }
+void log(String message) => print(message);
+
+
 
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+
   //ads
-  MobileAds.instance.initialize();
+
+  if (!kIsWeb) {
+    MobileAds.instance.initialize();
+  }
 
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  runZonedGuarded(() async {
+  log('🔥 Dart main started');
 
   // Enable Firestore caching (good!)
   FirebaseFirestore.instance.settings = const Settings(
@@ -44,7 +57,7 @@ void main() async {
   FirebasePerformance performance = FirebasePerformance.instance;
 
   //Notifications
-  await NotificationService.init();
+  //await NotificationService.init();
 
 
 
@@ -81,7 +94,11 @@ void main() async {
 //       AndroidFlutterLocalNotificationsPlugin>()
 //       ?.createNotificationChannel(channel);
 
-  runApp(const MyApp());
+    runApp(const MyApp());
+  }, (error, stack) {
+    print('Uncaught error: $error');
+    print('Stack trace: $stack');
+  });
 }
 
 

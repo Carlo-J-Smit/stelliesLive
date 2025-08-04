@@ -18,20 +18,26 @@ class NotificationService {
       onDidReceiveNotificationResponse: _onNotificationTap,
     );
 
-    // Request permissions (especially for iOS, but good practice)
+    const AndroidNotificationChannel channel = AndroidNotificationChannel(
+      'high_importance_channel',
+      'Important Notifications',
+      description: 'This channel is used for important notifications.',
+      importance: Importance.high,
+    );
+
+    await _flutterLocalNotificationsPlugin
+        .resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>()
+        ?.createNotificationChannel(channel);
+
     await FirebaseMessaging.instance.requestPermission(
       alert: true,
       badge: true,
       sound: true,
     );
 
-    // Handle background messages
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-
-    // Handle messages in foreground
     FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
-
-    // Handle taps on notifications (cold-start or background)
     FirebaseMessaging.onMessageOpenedApp.listen(_handleNotificationTap);
   }
 

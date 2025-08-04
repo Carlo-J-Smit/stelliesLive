@@ -3,6 +3,13 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geocoding/geocoding.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:intl/intl.dart';
+import 'package:flutter/services.dart';
+
+
+
 
 
 class AdminPage extends StatefulWidget {
@@ -19,6 +26,8 @@ class _AdminPageState extends State<AdminPage> {
   final _categoryController = TextEditingController();
   final _imageUrlController = TextEditingController();
   final _descriptionController = TextEditingController();
+  final _priceController = TextEditingController();
+
   DateTime? _selectedDateTime;
   bool _isRecurring = false;
   String? _selectedDayOfWeek;
@@ -37,6 +46,48 @@ class _AdminPageState extends State<AdminPage> {
   bool _isLoadingMore = false;
 
   final User? user = FirebaseAuth.instance.currentUser;
+
+  String _formatPrice(double price) {
+    final formatter = NumberFormat.currency(symbol: 'R', decimalDigits: 0);
+    return formatter.format(price);
+  }
+
+  List<TextSpan> highlightMatch(String source, String query) {
+    if (query.isEmpty) return [TextSpan(text: source)];
+
+    final lowerSource = source.toLowerCase();
+    final lowerQuery = query.toLowerCase();
+
+    final spans = <TextSpan>[];
+    int start = 0;
+
+    while (true) {
+      final index = lowerSource.indexOf(lowerQuery, start);
+      if (index < 0) {
+        spans.add(TextSpan(text: source.substring(start)));
+        break;
+      }
+
+      if (index > start) {
+        spans.add(TextSpan(text: source.substring(start, index)));
+      }
+
+      spans.add(
+        TextSpan(
+          text: source.substring(index, index + query.length),
+          style: const TextStyle(
+            backgroundColor: Colors.yellow,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      );
+
+      start = index + query.length;
+    }
+
+    return spans;
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -65,9 +116,17 @@ class _AdminPageState extends State<AdminPage> {
 
               const SizedBox(height: 16),
               ..._searchResults.map(
-                (doc) => ListTile(
-                  title: Text(doc['title']),
-                  subtitle: Text(doc['venue']),
+                    (doc) => ListTile(
+                  title: Text.rich(
+                    TextSpan(
+                      children: highlightMatch(doc['title'], _searchController.text),
+                    ),
+                  ),
+                  subtitle: Text.rich(
+                    TextSpan(
+                      children: highlightMatch(doc['venue'], _searchController.text),
+                    ),
+                  ),
                   onTap: () => _loadEvent(doc),
                   trailing: IconButton(
                     icon: const Icon(Icons.delete, color: Colors.red),
@@ -75,6 +134,8 @@ class _AdminPageState extends State<AdminPage> {
                   ),
                 ),
               ),
+
+
               if (_hasMore && !_isLoadingMore)
                 TextButton(
                   onPressed: _loadMoreResults,
@@ -95,18 +156,64 @@ class _AdminPageState extends State<AdminPage> {
                 controller: _venueController,
                 decoration: const InputDecoration(labelText: 'Venue'),
               ),
-              TextField(
-                controller: _categoryController,
+              DropdownButtonFormField<String>(
+                value: _categoryController.text.isNotEmpty ? _categoryController.text : null,
+                onChanged: (val) => setState(() => _categoryController.text = val ?? ''),
+                items: const [
+                  'Live Music',
+                  'Games',
+                  'Karaoke',
+                  'Market',
+                  'Sport',
+                  'Other',
+                ]
+                    .map((cat) => DropdownMenuItem(value: cat, child: Text(cat)))
+                    .toList(),
                 decoration: const InputDecoration(labelText: 'Category'),
               ),
+
+
+              const SizedBox(height: 10),
               TextField(
                 controller: _descriptionController,
-                decoration: const InputDecoration(labelText: 'Description'),
+                maxLines: null,
+                keyboardType: TextInputType.multiline,
+                decoration: const InputDecoration(
+                  labelText: 'Description',
+                  alignLabelWithHint: true,
+                  hintText: 'Use bullets (-, •) and line breaks to format.',
+                  border: OutlineInputBorder(),
+                ),
               ),
+
               TextField(
                 controller: _imageUrlController,
                 decoration: const InputDecoration(labelText: 'Image URL'),
               ),
+              const SizedBox(height: 10),
+              TextFormField(
+                controller: _priceController,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
+                ],
+                decoration: const InputDecoration(
+                  labelText: 'Event Price',
+                  prefixText: 'R ',
+                  border: OutlineInputBorder(),
+                ),
+                style: const TextStyle(fontWeight: FontWeight.w500),
+                validator: (value) {
+                  final price = double.tryParse(value ?? '');
+                  if (price == null || price < 0) {
+                    return 'Enter a valid price';
+                  }
+                  return null;
+                },
+              ),
+
+
+
 
               const SizedBox(height: 10),
               SwitchListTile(
@@ -226,7 +333,7 @@ class _AdminPageState extends State<AdminPage> {
   }
 
   void _searchEvents() async {
-    final query = _searchController.text.trim();
+    final query = _searchController.text.trim().toLowerCase();
     if (query.isEmpty) return;
 
     setState(() {
@@ -235,23 +342,35 @@ class _AdminPageState extends State<AdminPage> {
       _hasMore = true;
     });
 
-    final results =
-        await FirebaseFirestore.instance
-            .collection('events')
-            .where('title', isGreaterThanOrEqualTo: query)
-            .where('title', isLessThanOrEqualTo: query + '')
-            .limit(10)
-            .get();
+    final titleQuery = FirebaseFirestore.instance
+        .collection('events')
+        .where('titleLower', isGreaterThanOrEqualTo: query)
+        .where('titleLower', isLessThanOrEqualTo: query + '\uf8ff')
+        .limit(10)
+        .get();
 
-    if (results.docs.isNotEmpty) {
-      _lastDocument = results.docs.last;
-    }
+    final venueQuery = FirebaseFirestore.instance
+        .collection('events')
+        .where('venueLower', isGreaterThanOrEqualTo: query)
+        .where('venueLower', isLessThanOrEqualTo: query + '\uf8ff')
+        .limit(10)
+        .get();
+
+    final results = await Future.wait([titleQuery, venueQuery]);
+
+    final combined = <DocumentSnapshot>{}
+      ..addAll(results[0].docs)
+      ..addAll(results[1].docs);
+
+    final sortedResults = combined.toList()
+      ..sort((a, b) => (a['title'] ?? '').compareTo(b['title'] ?? ''));
 
     setState(() {
-      _searchResults = results.docs;
-      _hasMore = results.docs.length == 10;
+      _searchResults = sortedResults;
+      _hasMore = false; // pagination for now skipped
     });
   }
+
 
   void _loadMoreResults() async {
     if (!_hasMore || _isLoadingMore) return;
@@ -291,6 +410,9 @@ class _AdminPageState extends State<AdminPage> {
       _categoryController.text = doc['category'] ?? '';
       _descriptionController.text = doc['description'] ?? '';
       _imageUrlController.text = doc['imageUrl'] ?? '';
+      _priceController.text = (doc['price'] as num?)?.toStringAsFixed(2) ?? '';
+
+
 
       // ✅ Check if "location" exists before using it
       if (doc.data() is Map && (doc.data() as Map).containsKey('location')) {
@@ -344,6 +466,7 @@ class _AdminPageState extends State<AdminPage> {
         'imageUrl': _imageUrlController.text.trim(),
         'titleLower': _titleController.text.trim().toLowerCase(),
         'recurring': _isRecurring,
+        'price': double.tryParse(_priceController.text.trim()) ?? 0.0,
       };
 
       if (_isRecurring && _selectedDayOfWeek != null && _selectedDateTime != null) {
@@ -390,6 +513,11 @@ class _AdminPageState extends State<AdminPage> {
         _selectedDateTime = null;
         _selectedDayOfWeek = null;
         _isRecurring = false;
+        _priceController.clear();
+        _locationLat = null;
+        _locationLng = null;
+        _locationAddress = null;
+
       });
     } catch (e) {
       setState(() => _error = e.toString());
@@ -492,50 +620,60 @@ class _MapPickerDialog extends StatefulWidget {
 }
 
 class _MapPickerDialogState extends State<_MapPickerDialog> {
-  LatLng _initialPosition = const LatLng(-33.9249, 18.4241); // Cape Town
   LatLng? _pickedLocation;
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text("Pick Location"),
-      content: SizedBox(
-        width: double.maxFinite,
-        height: 400,
-        child: GoogleMap(
-          initialCameraPosition: CameraPosition(
-            target: _initialPosition,
-            zoom: 12,
-          ),
-          onTap: (LatLng pos) {
-            setState(() {
-              _pickedLocation = pos;
-            });
-          },
-          markers: _pickedLocation != null
-              ? {
-            Marker(
-              markerId: const MarkerId('picked'),
-              position: _pickedLocation!,
+    return FutureBuilder<Position>(
+      future: Geolocator.getCurrentPosition(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        final position = snapshot.data!;
+        final LatLng initialPosition = LatLng(position.latitude, position.longitude);
+
+        return AlertDialog(
+          title: const Text("Pick Location"),
+          content: SizedBox(
+            width: double.maxFinite,
+            height: 400,
+            child: GoogleMap(
+              initialCameraPosition: CameraPosition(
+                target: initialPosition,
+                zoom: 14,
+              ),
+              onTap: (LatLng pos) {
+                setState(() => _pickedLocation = pos);
+              },
+              markers: _pickedLocation != null
+                  ? {
+                Marker(
+                  markerId: const MarkerId('picked'),
+                  position: _pickedLocation!,
+                ),
+              }
+                  : {},
             ),
-          }
-              : {},
-        ),
-      ),
-      actions: [
-        TextButton(
-          child: const Text("Cancel"),
-          onPressed: () => Navigator.pop(context),
-        ),
-        ElevatedButton(
-          child: const Text("Select"),
-          onPressed: () {
-            if (_pickedLocation != null) {
-              Navigator.pop(context, _pickedLocation);
-            }
-          },
-        ),
-      ],
+          ),
+          actions: [
+            TextButton(
+              child: const Text("Cancel"),
+              onPressed: () => Navigator.pop(context),
+            ),
+            ElevatedButton(
+              child: const Text("Select"),
+              onPressed: () {
+                if (_pickedLocation != null) {
+                  Navigator.pop(context, _pickedLocation);
+                }
+              },
+            ),
+          ],
+        );
+      },
     );
   }
 }
+

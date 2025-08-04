@@ -12,6 +12,9 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../widgets/native_ad_banner.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:io' show Platform;
+
 
 class ActivityScreen extends StatefulWidget {
   final List<Event> events;
@@ -73,7 +76,7 @@ class _ActivityScreenState extends State<ActivityScreen> {
       _mapReady = true;
       setState(() {});
 
-      await _initNotifications();
+      //await _initNotifications();
       await _initActivity();
     });
 
@@ -766,23 +769,23 @@ class _ActivityScreenState extends State<ActivityScreen> {
                         _buildLegend(),
 
                         // Sticky Ad Banner at the bottom
-                        Positioned(
-                          left: 0,
-                          right: 0,
-                          bottom: 0,
-                          child: SafeArea(
-                            top: false,
-                            child: NativeAdBanner(
-                              onVisibilityChanged: (visible) {
-                                final safeBottom = MediaQuery.of(context).padding.bottom;
-                                setState(() {
-                                  _bottomMapPadding = visible ? (safeBottom) : safeBottom;
-                                });
-                              },
-
+                        if (!kIsWeb && (Platform.isAndroid || Platform.isIOS))
+                          Positioned(
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            child: SafeArea(
+                              top: false,
+                              child: NativeAdBanner(
+                                onVisibilityChanged: (visible) {
+                                  final safeBottom = MediaQuery.of(context).padding.bottom;
+                                  setState(() {
+                                    _bottomMapPadding = visible ? (safeBottom) : safeBottom;
+                                  });
+                                },
+                              ),
                             ),
                           ),
-                        ),
 
                         // _buildNotificationBanner(),
                         // Positioned(

@@ -10,12 +10,8 @@ import '../widgets/trending_ad_rotator.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import '../constants/colors.dart';
-
-
-
-
-
-
+import 'dart:io' show Platform;
+import 'package:url_launcher/url_launcher.dart';
 
 
 class EventsScreen extends StatefulWidget {
@@ -34,14 +30,16 @@ class _EventsScreenState extends State<EventsScreen> {
   String _filterType = 'All';
   final TextEditingController _searchController = TextEditingController();
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+
   bool get _isMobile {
-    return !kIsWeb && (Theme.of(context).platform == TargetPlatform.android || Theme.of(context).platform == TargetPlatform.iOS);
+    return !kIsWeb &&
+        (Theme.of(context).platform == TargetPlatform.android ||
+            Theme.of(context).platform == TargetPlatform.iOS);
   }
+
   final List<NativeAd> _loadedAds = [];
   final int _adFrequency = 4;
   final int _maxAds = 10;
-
-
 
   @override
   void initState() {
@@ -51,8 +49,9 @@ class _EventsScreenState extends State<EventsScreen> {
       _applyFilters();
       return events;
     });
-    preloadNativeAds();
-
+    if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
+      preloadNativeAds();
+    }
   }
 
   void preloadNativeAds() {
@@ -79,17 +78,18 @@ class _EventsScreenState extends State<EventsScreen> {
     }
   }
 
-
   void _applyFilters() {
     setState(() {
       final lowerQuery = _searchController.text.toLowerCase();
-      _filteredEvents = _allEvents.where((event) {
-        final matchesSearch = event.title.toLowerCase().contains(lowerQuery) ||
-            event.venue.toLowerCase().contains(lowerQuery);
-        final matchesFilter =
-            _filterType == 'All' || event.category == _filterType;
-        return matchesSearch && matchesFilter;
-      }).toList();
+      _filteredEvents =
+          _allEvents.where((event) {
+            final matchesSearch =
+                event.title.toLowerCase().contains(lowerQuery) ||
+                event.venue.toLowerCase().contains(lowerQuery);
+            final matchesFilter =
+                _filterType == 'All' || event.category == _filterType;
+            return matchesSearch && matchesFilter;
+          }).toList();
     });
   }
 
@@ -115,45 +115,51 @@ class _EventsScreenState extends State<EventsScreen> {
 
     for (int i = 0; eventIndex < _filteredEvents.length; i++) {
       // Every nth item is an ad
-      if (i != 0 && i % _adFrequency == 0 && adIndex < _loadedAds.length) {
-        widgets.add(
-          Container(
-            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              border: Border.all(color: Colors.grey.shade200),
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: const [
-                BoxShadow(
-                  color: Colors.black12,
-                  blurRadius: 6,
-                  offset: Offset(0, 2),
-                ),
-              ],
-            ),
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Sponsored',
-                  style: TextStyle(
-                    color: AppColors.primaryRed,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
-                    letterSpacing: 0.5,
+      if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
+        if (i != 0 && i % _adFrequency == 0 && adIndex < _loadedAds.length) {
+          widgets.add(
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                border: Border.all(color: Colors.grey.shade200),
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Colors.black12,
+                    blurRadius: 6,
+                    offset: Offset(0, 2),
                   ),
-                ),
-                const SizedBox(height: 8),
-                SizedBox(
-                  height: 100,
-                  child: AdWidget(ad: _loadedAds[adIndex]),
-                ),
-              ],
+                ],
+              ),
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Sponsored',
+                    style: TextStyle(
+                      color: AppColors.primaryRed,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    height: 100,
+                    child: AdWidget(ad: _loadedAds[adIndex]),
+                  ),
+                ],
+              ),
             ),
-          ),
-        );
-        adIndex++;
+          );
+          adIndex++;
+
+        } else if (eventIndex < _filteredEvents.length) {
+          widgets.add(EventCard(event: _filteredEvents[eventIndex]));
+          eventIndex++;
+        }
       } else if (eventIndex < _filteredEvents.length) {
         widgets.add(EventCard(event: _filteredEvents[eventIndex]));
         eventIndex++;
@@ -162,12 +168,6 @@ class _EventsScreenState extends State<EventsScreen> {
 
     return widgets;
   }
-
-
-
-
-
-
 
   @override
   Widget build(BuildContext context) {
@@ -202,9 +202,8 @@ class _EventsScreenState extends State<EventsScreen> {
                       onClose: () => Navigator.of(context).pop(),
                       searchController: _searchController,
                       selectedFilter: _filterType,
-                    )
-
-              )
+                    ),
+                  )
                   : null,
 
           body: Column(
@@ -245,35 +244,42 @@ class _EventsScreenState extends State<EventsScreen> {
                             );
                           } else {
                             final now = DateTime.now();
-                            final today = [
-                              'monday',
-                              'tuesday',
-                              'wednesday',
-                              'thursday',
-                              'friday',
-                              'saturday',
-                              'sunday',
-                            ][now.weekday - 1];
+                            final today =
+                                [
+                                  'monday',
+                                  'tuesday',
+                                  'wednesday',
+                                  'thursday',
+                                  'friday',
+                                  'saturday',
+                                  'sunday',
+                                ][now.weekday - 1];
 
-                            final todayEvents = _filteredEvents.where((event) {
-                              if (event.recurring == true && event.dayOfWeek == today) return true;
-                              if (event.dateTime != null) {
-                                return event.dateTime.year == now.year &&
-                                    event.dateTime.month == now.month &&
-                                    event.dateTime.day == now.day;
-                              }
-                              return false;
-                            }).toList();
+                            final todayEvents =
+                                _filteredEvents.where((event) {
+                                  if (event.recurring == true &&
+                                      event.dayOfWeek == today)
+                                    return true;
+                                  if (event.dateTime != null) {
+                                    return event.dateTime.year == now.year &&
+                                        event.dateTime.month == now.month &&
+                                        event.dateTime.day == now.day;
+                                  }
+                                  return false;
+                                }).toList();
 
                             return ListView(
-                              padding: isNarrow
-                                  ? const EdgeInsets.only(bottom: 16)
-                                  : const EdgeInsets.all(16),
+                              padding:
+                                  isNarrow
+                                      ? const EdgeInsets.only(bottom: 16)
+                                      : const EdgeInsets.all(16),
                               children: [
                                 if (todayEvents.isNotEmpty)
                                   TodayEventRotator(events: todayEvents)
-                                else if (_isMobile)
+                                else if (!kIsWeb &&
+                                    (Platform.isAndroid || Platform.isIOS))
                                   const TrendingAdRotator(),
+
                                 // else
                                 //   const Padding(
                                 //     padding: EdgeInsets.symmetric(vertical: 24),
@@ -284,48 +290,80 @@ class _EventsScreenState extends State<EventsScreen> {
                                 //       ),
                                 //     ),
                                 //   ),
-
-
-
                                 const SizedBox(height: 20),
 
                                 Builder(
-                                  builder: (context) => Row(
-                                    children: [
-                                      if (isNarrow)
-                                        IconButton(
-                                          icon: const Icon(Icons.tune),
-                                          onPressed: () => Scaffold.of(context).openDrawer(),
-                                        ),
-                                      const Text(
-                                        'All Events',
-                                        style: TextStyle(
-                                          fontSize: 20,
-                                          fontWeight: FontWeight.bold,
-                                        ),
+                                  builder:
+                                      (context) => Row(
+                                        children: [
+                                          if (isNarrow)
+                                            IconButton(
+                                              icon: const Icon(Icons.tune),
+                                              onPressed:
+                                                  () =>
+                                                      Scaffold.of(
+                                                        context,
+                                                      ).openDrawer(),
+                                            ),
+                                          const Text(
+                                            'All Events',
+                                            style: TextStyle(
+                                              fontSize: 20,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ],
                                       ),
-                                    ],
-                                  ),
                                 ),
 
                                 const SizedBox(height: 10),
 
                                 if (_filteredEvents.isEmpty)
-                                  const Center(
+                                  Center(
                                     child: Padding(
-                                      padding: EdgeInsets.symmetric(vertical: 32),
-                                      child: Text(
-                                        'No events match your search.',
-                                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                                      padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 16),
+                                      child: Column(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          const Text(
+                                            'No events match your search.',
+                                            style: TextStyle(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 12),
+                                          const Text(
+                                            'Want to see something added?',
+                                            style: TextStyle(fontSize: 14),
+                                          ),
+                                          const SizedBox(height: 8),
+                                          ElevatedButton.icon(
+                                            onPressed: () {
+                                              const url = 'https://docs.google.com/forms/d/e/1FAIpQLSe1tEAuqDT4VEjqggP633DLwzqsI3xpEKaP_su4AI_K4KqooA/viewform?usp=dialog';
+                                              launchUrl(Uri.parse(url));
+                                            },
+                                            icon: const Icon(Icons.add_circle_outline),
+                                            label: const Text('Request an Event'),
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: AppColors.primaryRed,
+                                              foregroundColor: Colors.white,
+                                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius: BorderRadius.circular(12),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ),
                                   )
+
                                 else
                                   ..._buildEventListWithAds(),
                               ],
                             );
                           }
-
                         },
                       ),
                     ),
@@ -340,5 +378,3 @@ class _EventsScreenState extends State<EventsScreen> {
     );
   }
 }
-
-
