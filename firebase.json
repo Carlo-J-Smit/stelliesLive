@@ -26,6 +26,17 @@
       "**/.*",
       "**/node_modules/**"
     ],
+    "headers": [
+      {
+        "source": "/icons/site.webmanifest",
+        "headers": [
+          {
+            "key": "Content-Type",
+            "value": "application/manifest+json"
+          }
+        ]
+      }
+    ],
     "rewrites": [
       {
         "source": "/sitemap.xml",
