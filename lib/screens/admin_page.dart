@@ -37,6 +37,8 @@ class _AdminPageState extends State<AdminPage> {
   String? _locationAddress;
   double? _locationLat;
   double? _locationLng;
+  String? _selectedTag;
+
 
   List<DocumentSnapshot> _searchResults = [];
   DocumentSnapshot? _selectedEvent;
@@ -87,6 +89,49 @@ class _AdminPageState extends State<AdminPage> {
 
     return spans;
   }
+
+  Color _tagColor(String tag) {
+    switch (tag) {
+      case '18+':
+        return Colors.redAccent;
+      case 'VIP':
+        return Colors.purple;
+      case 'Sold Out':
+        return Colors.grey;
+      case 'Free Entry':
+        return Colors.green;
+      case 'Popular':
+        return Colors.orange;
+      case 'Outdoor':
+        return Colors.teal;
+      case 'Limited Seats':
+        return Colors.blue;
+      default:
+        return Colors.black;
+    }
+  }
+
+  IconData _tagIcon(String tag) {
+    switch (tag) {
+      case '18+':
+        return Icons.do_not_disturb_alt;
+      case 'VIP':
+        return Icons.star;
+      case 'Sold Out':
+        return Icons.block;
+      case 'Free Entry':
+        return Icons.check_circle_outline;
+      case 'Popular':
+        return Icons.local_fire_department;
+      case 'Outdoor':
+        return Icons.park;
+      case 'Limited Seats':
+        return Icons.event_seat;
+      default:
+        return Icons.label;
+    }
+  }
+
 
 
   @override
@@ -171,6 +216,64 @@ class _AdminPageState extends State<AdminPage> {
                     .toList(),
                 decoration: const InputDecoration(labelText: 'Category'),
               ),
+
+              DropdownButtonFormField<String>(
+                value: _selectedTag,
+                onChanged: (val) => setState(() => _selectedTag = val),
+                items: const [
+                  'None',
+                  '18+',
+                  'VIP',
+                  'Sold Out',
+                  'Outdoor',
+                  'Limited Seats',
+                ].map(
+                      (tag) => DropdownMenuItem(
+                    value: tag == 'None' ? null : tag,
+                    child: Text(tag),
+                  ),
+                ).toList(),
+
+                decoration: const InputDecoration(labelText: 'Event Tag (optional)'),
+              ),
+
+
+              if (_selectedTag != null && _selectedTag!.isNotEmpty) ...[
+                const SizedBox(height: 2),
+                Padding(
+                  padding: const EdgeInsets.only(top: 10),
+                  child: Builder(
+                    builder: (context) {
+                      final tag = _selectedTag!;
+                      return Row(
+                        children: [
+                          const Text(
+                            'Tag Preview:',
+                            style: TextStyle(
+                              color: Colors.black,
+                              fontWeight: FontWeight.w500,
+                              fontSize: 14,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Icon(_tagIcon(tag), color: _tagColor(tag), size: 20),
+                          const SizedBox(width: 6),
+                          Text(
+                            tag,
+                            style: TextStyle(
+                              color: _tagColor(tag),
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ),
+              ],
+
+
 
 
               const SizedBox(height: 10),
@@ -411,6 +514,8 @@ class _AdminPageState extends State<AdminPage> {
       _descriptionController.text = doc['description'] ?? '';
       _imageUrlController.text = doc['imageUrl'] ?? '';
       _priceController.text = (doc['price'] as num?)?.toStringAsFixed(2) ?? '';
+      _selectedTag = doc['tag'];
+
 
 
 
@@ -483,8 +588,18 @@ class _AdminPageState extends State<AdminPage> {
       };
       }
 
+      final tag = _selectedTag;
+      if (_selectedTag != null && _selectedTag!.isNotEmpty) {
+        data['tag'] = _selectedTag!;
+      } else {
+        data['tag'] = FieldValue.delete(); // 🧼 clears it from Firestore
+      }
 
-  if (_selectedEvent == null) {
+
+
+
+
+      if (_selectedEvent == null) {
         await FirebaseFirestore.instance.collection('events').add(data);
       } else {
         await FirebaseFirestore.instance
@@ -517,6 +632,8 @@ class _AdminPageState extends State<AdminPage> {
         _locationLat = null;
         _locationLng = null;
         _locationAddress = null;
+        _selectedTag = null;
+
 
       });
     } catch (e) {

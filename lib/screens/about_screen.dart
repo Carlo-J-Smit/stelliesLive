@@ -101,6 +101,16 @@ class AboutScreen extends StatelessWidget {
 
             _buildDivider(),
 
+            _buildSectionHeader('🧹 Data Deletion & Privacy Details'),
+            _buildSectionText(
+              'You can view our full privacy policy and request data deletion through the links below. We are committed to transparency and protecting your rights.',
+            ),
+            _buildLink('🔐 View Full Privacy Policy', 'https://stellieslive.web.app/privacy-policy'),
+            _buildLink('🗑️ Request Data Deletion', 'https://stellieslive.web.app/delete-account'),
+
+
+            _buildDivider(),
+
             _buildSectionHeader('📚 Open Source Licenses'),
             TextButton.icon(
               onPressed: () => _showLicenses(context),

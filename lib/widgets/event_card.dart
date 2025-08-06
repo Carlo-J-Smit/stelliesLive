@@ -6,8 +6,6 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:intl/intl.dart';
 import '../constants/colors.dart';
 
-
-
 class EventCard extends StatefulWidget {
   final Event event;
 
@@ -29,7 +27,6 @@ class _EventCardState extends State<EventCard> {
     return formatter.format(price);
   }
 
-
   @override
   Widget build(BuildContext context) {
     final event = widget.event;
@@ -48,92 +45,126 @@ class _EventCardState extends State<EventCard> {
           borderRadius: BorderRadius.circular(12),
           boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4)],
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Stack(
           children: [
-            Row(
-              children: [
-                if (hasImage)
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.network(
-                      event.imageUrl!,
-                      width: 100,
-                      height: 100,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => const SizedBox(),
-                    ),
-                  ),
-                if (hasImage) const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+            Padding(
+              padding: const EdgeInsets.only(top: 0, right: 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
                     children: [
-                      Text(
-                        event.title,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      if (event.venue.isNotEmpty)
-                        Text(
-                          event.venue,
-                          style: const TextStyle(color: Colors.grey),
-                        ),
-                      const SizedBox(height: 2),
-                      Text(
-                        event.recurring == true
-                            ? '${event.dayOfWeek![0].toUpperCase()}${event.dayOfWeek!.substring(1)} @ ${TimeOfDay.fromDateTime(event.dateTime).format(context)}'
-                            : _formatDateTime(event.dateTime),
-                        style: const TextStyle(color: Colors.grey),
-                      ),
-                      const SizedBox(height: 2),
-                      if (event.price != null)
-                        Text(
-                          event.price! > 0 ? _formatPrice(event.price!) : 'Free',
-                          style: TextStyle(
-                            color: event.price! > 0 ? Colors.red : Colors.blueGrey,
-                            fontWeight: FontWeight.w500,
+                      if (hasImage)
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.network(
+                            event.imageUrl!,
+                            width: 100,
+                            height: 100,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => const SizedBox(),
                           ),
                         ),
+                      if (hasImage) const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              event.title,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            if (event.venue.isNotEmpty)
+                              Text(
+                                event.venue,
+                                style: const TextStyle(color: Colors.grey),
+                              ),
+                            const SizedBox(height: 2),
+                            Text(
+                              event.recurring == true
+                                  ? '${event.dayOfWeek![0].toUpperCase()}${event.dayOfWeek!.substring(1)} @ ${TimeOfDay.fromDateTime(event.dateTime).format(context)}'
+                                  : _formatDateTime(event.dateTime),
+                              style: const TextStyle(color: Colors.grey),
+                            ),
+                            const SizedBox(height: 2),
+                            if (event.price != null)
+                              Text(
+                                event.price! > 0
+                                    ? _formatPrice(event.price!)
+                                    : 'Free',
+                                style: TextStyle(
+                                  color:
+                                      event.price! > 0
+                                          ? Colors.red
+                                          : Colors.blueGrey,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                      Icon(
+                        _isExpanded ? Icons.expand_less : Icons.expand_more,
+                        color: Colors.grey[600],
+                      ),
+                    ],
+                  ),
+                  if (_isExpanded &&
+                      event.description != null &&
+                      event.description!.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      event.description!,
+                      style: const TextStyle(color: Colors.black87),
+                    ),
+                  ],
+                  if (event.lat != null && event.lng != null)
+                    TextButton.icon(
+                      icon: const Icon(Icons.map_outlined),
+                      label: const Text('Open in Maps'),
+                      onPressed: () {
+                        final uri = Uri.parse(
+                          'https://www.google.com/maps/dir/?api=1&destination=${event.lat},${event.lng}',
+                        );
+                        launchUrl(uri, mode: LaunchMode.externalApplication);
+                      },
+                    ),
+                ],
+              ),
+            ),
 
+            // 🎟️ Tag Badge (top-right)
+            if (event.tag != null && event.tag!.isNotEmpty)
+              Positioned(
+                top: 0,
+                right: 0,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: _tagColor(event.tag!),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(_tagIcon(event.tag!), color: Colors.white, size: 14),
+                      const SizedBox(width: 4),
+                      Text(
+                        event.tag!,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
                     ],
                   ),
                 ),
-                Icon(
-                  _isExpanded ? Icons.expand_less : Icons.expand_more,
-                  color: Colors.grey[600],
-                ),
-              ],
-            ),
-
-            // 📖 Expandable content
-            if (_isExpanded &&
-                event.description != null &&
-                event.description!.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              Text(
-                event.description!,
-                style: const TextStyle(color: Colors.black87),
               ),
-            ],
-
-
-
-
-
-            if (event.lat != null && event.lng != null)
-            TextButton.icon(
-              icon: const Icon(Icons.map_outlined),
-              label: const Text('Open in Maps'),
-              onPressed: () {
-                final uri = Uri.parse('https://www.google.com/maps/dir/?api=1&destination=${event.lat},${event.lng}');
-                launchUrl(uri, mode: LaunchMode.externalApplication);
-              },
-            ),
-
 
           ],
         ),
@@ -141,9 +172,50 @@ class _EventCardState extends State<EventCard> {
     );
   }
 
-
-
   String _formatDateTime(DateTime dt) {
     return "${dt.day}/${dt.month}/${dt.year} @ ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}";
   }
+
+  Color _tagColor(String tag) {
+    switch (tag) {
+      case '18+':
+        return Colors.redAccent;
+      case 'VIP':
+        return Colors.purple;
+      case 'Sold Out':
+        return Colors.grey;
+      case 'Free Entry':
+        return Colors.green;
+      case 'Popular':
+        return Colors.orange;
+      case 'Outdoor':
+        return Colors.teal;
+      case 'Limited Seats':
+        return Colors.blue;
+      default:
+        return Colors.black;
+    }
+  }
+
+  IconData _tagIcon(String tag) {
+    switch (tag) {
+      case '18+':
+        return Icons.do_not_disturb_alt;
+      case 'VIP':
+        return Icons.star;
+      case 'Sold Out':
+        return Icons.block;
+      case 'Free Entry':
+        return Icons.check_circle_outline;
+      case 'Popular':
+        return Icons.local_fire_department;
+      case 'Outdoor':
+        return Icons.park;
+      case 'Limited Seats':
+        return Icons.event_seat;
+      default:
+        return Icons.label;
+    }
+  }
+
 }

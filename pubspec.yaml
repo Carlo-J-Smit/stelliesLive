@@ -93,6 +93,8 @@ flutter_native_splash:
   android_gravity: center
   ios_content_mode: center
   fullscreen: true
+  android: true
+  ios: true
   
   # <-- path to your new logo
 # For information on the generic Dart part of this file, see the

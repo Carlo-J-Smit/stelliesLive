@@ -19,88 +19,83 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'dart:async'; // This gives you runZonedGuarded
 import 'package:flutter/foundation.dart' show kIsWeb;
 
-
-
-
-
 Future<void> _requestNotificationPermission() async {
   if (await Permission.notification.isDenied) {
     await Permission.notification.request();
   }
 }
+
 void log(String message) => print(message);
 
-
-
-
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+  runZonedGuarded(
+    () async {
+      WidgetsFlutterBinding.ensureInitialized();
 
+      //ads
 
-  //ads
+      if (!kIsWeb) {
+        MobileAds.instance.initialize();
+      }
 
-  if (!kIsWeb) {
-    MobileAds.instance.initialize();
-  }
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
 
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  runZonedGuarded(() async {
-  log('🔥 Dart main started');
+      log('🔥 Dart main started');
 
-  // Enable Firestore caching (good!)
-  FirebaseFirestore.instance.settings = const Settings(
-    persistenceEnabled: true,
-    cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+      // Enable Firestore caching (good!)
+      FirebaseFirestore.instance.settings = const Settings(
+        persistenceEnabled: true,
+        cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+      );
+
+      // ✅ Initialize Firebase Performance
+      FirebasePerformance performance = FirebasePerformance.instance;
+
+      //Notifications
+      //await NotificationService.init();
+
+      // // Step 1: Create Android Notification Channel
+      //   await _requestNotificationPermission();
+      //
+      //   const AndroidNotificationChannel channel = AndroidNotificationChannel(
+      //     'high_importance_channel', // id
+      //     'High Importance Notifications', // title
+      //     description: 'This channel is used for important notifications.', // description
+      //     importance: Importance.high,
+      //   );
+      //
+      // // Step 2: Initialize the plugin
+      //   const AndroidInitializationSettings initializationSettingsAndroid =
+      //   AndroidInitializationSettings('ic_stat_notifications');
+      //
+      //   const InitializationSettings initializationSettings = InitializationSettings(
+      //     android: initializationSettingsAndroid,
+      //     iOS: DarwinInitializationSettings(),
+      //   );
+      //
+      //   await flutterLocalNotificationsPlugin.initialize(
+      //     initializationSettings,
+      //     onDidReceiveNotificationResponse: (NotificationResponse response) {
+      //       debugPrint('User tapped notification: ${response.payload}');
+      //     },
+      //   );
+      //
+      // // Step 3: Register the channel with Android
+      //   await flutterLocalNotificationsPlugin
+      //       .resolvePlatformSpecificImplementation<
+      //       AndroidFlutterLocalNotificationsPlugin>()
+      //       ?.createNotificationChannel(channel);
+
+      runApp(const MyApp());
+    },
+    (error, stack) {
+      print('Uncaught error: $error');
+      print('Stack trace: $stack');
+    },
   );
-
-  // ✅ Initialize Firebase Performance
-  FirebasePerformance performance = FirebasePerformance.instance;
-
-  //Notifications
-  //await NotificationService.init();
-
-
-
-
-// // Step 1: Create Android Notification Channel
-//   await _requestNotificationPermission();
-//
-//   const AndroidNotificationChannel channel = AndroidNotificationChannel(
-//     'high_importance_channel', // id
-//     'High Importance Notifications', // title
-//     description: 'This channel is used for important notifications.', // description
-//     importance: Importance.high,
-//   );
-//
-// // Step 2: Initialize the plugin
-//   const AndroidInitializationSettings initializationSettingsAndroid =
-//   AndroidInitializationSettings('ic_stat_notifications');
-//
-//   const InitializationSettings initializationSettings = InitializationSettings(
-//     android: initializationSettingsAndroid,
-//     iOS: DarwinInitializationSettings(),
-//   );
-//
-//   await flutterLocalNotificationsPlugin.initialize(
-//     initializationSettings,
-//     onDidReceiveNotificationResponse: (NotificationResponse response) {
-//       debugPrint('User tapped notification: ${response.payload}');
-//     },
-//   );
-//
-// // Step 3: Register the channel with Android
-//   await flutterLocalNotificationsPlugin
-//       .resolvePlatformSpecificImplementation<
-//       AndroidFlutterLocalNotificationsPlugin>()
-//       ?.createNotificationChannel(channel);
-
-    runApp(const MyApp());
-  }, (error, stack) {
-    print('Uncaught error: $error');
-    print('Stack trace: $stack');
-  });
 }
-
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -120,8 +115,6 @@ class MyApp extends StatelessWidget {
       },
     );
   }
-
-
 }
 
 // class EventsScreen extends StatefulWidget {

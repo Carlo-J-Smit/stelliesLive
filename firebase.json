@@ -38,15 +38,26 @@
       }
     ],
     "rewrites": [
-      {
-        "source": "/sitemap.xml",
-        "destination": "/sitemap.xml"
-      },
-      {
-        "source": "**",
-        "destination": "/index.html"
-      }
-    ]
+  {
+    "source": "/sitemap.xml",
+    "destination": "/sitemap.xml"
+  },
+  {
+    "source": "/delete-account",
+    "destination": "/delete-account.html"
+  },
+  {
+  "source": "/privacy-policy",
+  "destination": "/privacy-policy.html"
+  },
+  {
+    "source": "**",
+    "destination": "/index.html"
+  }
+  
+
+]
+
   },
   "functions": [
     {

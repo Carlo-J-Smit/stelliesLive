@@ -1,9 +1,6 @@
 <!DOCTYPE html><html><head>
   <meta name="google-site-verification" content="iEV5FqXpxtQm3AwJEqEuhB7rTO2yMQapo3KgZ4mle38">
-  <script
-    async
-    defer
-    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyA4Bwu0nrpXkhO7Ud3zNRzZ2EyWQlB5FNg"></script>
+  <script async="" defer="" src="https://maps.googleapis.com/maps/api/js?key=AIzaSyA4Bwu0nrpXkhO7Ud3zNRzZ2EyWQlB5FNg"></script>
 
   <base href="$FLUTTER_BASE_HREF">
 
@@ -36,18 +33,70 @@
   <meta name="apple-mobile-web-app-title" content="stellieslive">
   
   <!-- Apple Touch Icon -->
-  <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
 
   <!-- Favicons -->
-  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32x32.png" />
-  <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16x16.png" />
-  <link rel="icon" type="image/x-icon" href="icons/favicon.ico" />
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16x16.png">
+  <link rel="icon" type="image/x-icon" href="icons/favicon.ico">
 
-  <link rel="manifest" href="icons/site.webmanifest?v=2" />
+  <link rel="manifest" href="icons/site.webmanifest?v=2">
 
   
   
   <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport">
+  
+  
+  
+  
+  
+  <!-- ✅ Error Logging -->
+  <script>
+    window.addEventListener("error", function (event) {
+      const errorDetails = {
+        message: event.message,
+        source: event.filename,
+        line: event.lineno,
+        column: event.colno,
+        userAgent: navigator.userAgent,
+        timestamp: new Date().toISOString()
+      };
+      console.warn("🔥 JS Error Detected:", errorDetails);
+    });
+
+    window.addEventListener("unhandledrejection", function (event) {
+      console.warn("🧨 Unhandled Promise Rejection:", {
+        reason: event.reason,
+        userAgent: navigator.userAgent,
+        timestamp: new Date().toISOString()
+      });
+    });
+  </script>
+
+  <!-- ✅ Flutter Bootstrap Logs -->
+  <script>
+    console.log("📦 Starting Flutter bootstrap...");
+
+    window._flutter = window._flutter || {};
+    _flutter.buildConfig = {
+      engineRevision: "ef0cd000916d64fa0c5d09cc809fa7ad244a5767",
+      builds: [
+        {
+          compileTarget: "dart2js",
+          renderer: "canvaskit",
+          mainJsPath: "main.dart.js"
+        }
+      ]
+    };
+
+    console.log("🎯 Flutter build config loaded");
+
+    window.addEventListener("load", () => {
+      console.log("🚀 Window loaded. Launching app...");
+    });
+  </script>
+  
+  
   
   
   <style id="splash-screen-style">
@@ -115,52 +164,6 @@
       document.body.style.background = "transparent";
     }
   </script>
-  
-  <!-- ✅ Error Logging -->
-  <script>
-    window.addEventListener("error", function (event) {
-      const errorDetails = {
-        message: event.message,
-        source: event.filename,
-        line: event.lineno,
-        column: event.colno,
-        userAgent: navigator.userAgent,
-        timestamp: new Date().toISOString()
-      };
-      console.warn("🔥 JS Error Detected:", errorDetails);
-    });
-
-    window.addEventListener("unhandledrejection", function (event) {
-      console.warn("🧨 Unhandled Promise Rejection:", {
-        reason: event.reason,
-        userAgent: navigator.userAgent,
-        timestamp: new Date().toISOString()
-      });
-    });
-  </script>
-
-  <!-- ✅ Flutter Bootstrap Logs -->
-  <script>
-    console.log("📦 Starting Flutter bootstrap...");
-
-    window._flutter = window._flutter || {};
-    _flutter.buildConfig = {
-      engineRevision: "ef0cd000916d64fa0c5d09cc809fa7ad244a5767",
-      builds: [
-        {
-          compileTarget: "dart2js",
-          renderer: "canvaskit",
-          mainJsPath: "main.dart.js"
-        }
-      ]
-    };
-
-    console.log("🎯 Flutter build config loaded");
-
-    window.addEventListener("load", () => {
-      console.log("🚀 Window loaded. Launching app...");
-    });
-  </script>
 </head>
 <body>
   <picture id="splash">
@@ -168,12 +171,16 @@
       <source srcset="splash/img/dark-1x.png 1x, splash/img/dark-2x.png 2x, splash/img/dark-3x.png 3x, splash/img/dark-4x.png 4x" media="(prefers-color-scheme: dark)">
       <img class="center" aria-hidden="true" src="splash/img/light-1x.png" alt="">
   </picture>
+  
+  
+  
     
   <script src="flutter_bootstrap.js" async=""></script>
   
     
-</body>
-</html>
+
+
+
 
 
 

@@ -15,6 +15,9 @@ linux/flutter/ephemeral/
 windows/flutter/ephemeral/
 *.lock
 *.log
+*.jks
+android/keystore/my-release-key.jks
+android/key.properties
 
 # IntelliJ related
 *.iml

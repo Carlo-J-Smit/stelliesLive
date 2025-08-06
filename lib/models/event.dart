@@ -15,6 +15,8 @@ class Event {
   double? distance;
   final int? popularity; // 1 = Quiet, 2 = Moderate, 3 = Busy
   final double? price;
+  final String? tag;
+
 
 
 
@@ -33,7 +35,7 @@ class Event {
     this.distance,
     this.popularity,
     this.price,
-
+    this.tag,
   });
 
   factory Event.fromMap(String id, Map<String, dynamic> data) {
@@ -53,6 +55,7 @@ class Event {
       lng: (location?['lng'] as num?)?.toDouble(),
       popularity: data['popularity'],
       price: (data['price'] as num?)?.toDouble(),
+      tag: data['tag'],
     );
   }
 
