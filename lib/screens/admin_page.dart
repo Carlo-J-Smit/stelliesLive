@@ -195,8 +195,14 @@ class _AdminPageState extends State<AdminPage> {
               const SizedBox(height: 16),
               TextField(
                 controller: _titleController,
-                decoration: const InputDecoration(labelText: 'Title'),
+                maxLength: 40, // ⬅️ Limit to 40 characters
+                decoration: const InputDecoration(
+                  labelText: 'Title',
+                  counterText: '', // optional: hides default counter text
+                  helperText: 'Max 40 characters',
+                ),
               ),
+
               TextField(
                 controller: _venueController,
                 decoration: const InputDecoration(labelText: 'Venue'),

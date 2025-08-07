@@ -14,40 +14,45 @@ class TodayEventRotator extends StatefulWidget {
 }
 
 class _TodayEventRotatorState extends State<TodayEventRotator> {
-  int _currentIndex = 0;
+  static const int _initialPage = 10000;
+  late final PageController _pageController;
+  late int _currentIndex;
   Timer? _timer;
+
   final Duration _interval = const Duration(seconds: 5);
-  final Duration _fadeDuration = const Duration(milliseconds: 500);
 
   @override
   void initState() {
     super.initState();
+    _pageController = PageController(initialPage: _initialPage);
+    _currentIndex = _initialPage;
     _startRotating();
   }
 
   void _startRotating() {
     if (widget.events.length <= 1) return;
-    _timer = Timer.periodic(_interval, (_) => _nextEvent());
-  }
-
-  void _nextEvent() {
-     if (!mounted) return;
-    setState(() {
-      _currentIndex = (_currentIndex + 1) % widget.events.length;
+    _timer = Timer.periodic(_interval, (_) {
+      if (!mounted || _pageController.positions.isEmpty) return;
+      _pageController.nextPage(
+        duration: const Duration(milliseconds: 500),
+        curve: Curves.easeInOut,
+      );
     });
   }
 
-  void _previousEvent() {
-    if (!mounted) return;
+  void _onPageChanged(int index) {
     setState(() {
-      _currentIndex =
-          (_currentIndex - 1 + widget.events.length) % widget.events.length;
+      _currentIndex = index;
     });
     _resetTimer();
   }
 
-  void _manualNextEvent() {
-    _nextEvent();
+  void _goToPage(int index) {
+    _pageController.animateToPage(
+      index,
+      duration: const Duration(milliseconds: 500),
+      curve: Curves.easeInOut,
+    );
     _resetTimer();
   }
 
@@ -59,27 +64,27 @@ class _TodayEventRotatorState extends State<TodayEventRotator> {
   @override
   void dispose() {
     _timer?.cancel();
+    _pageController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    if (widget.events.isEmpty) {
-      return const SizedBox(); // No content
-    }
+    if (widget.events.isEmpty) return const SizedBox();
 
     return LayoutBuilder(
       builder: (context, constraints) {
         final isNarrow = constraints.maxWidth < 1000;
         final isSuperNarrow = constraints.maxWidth < 500;
-        final currentEvent = widget.events[_currentIndex];
 
         final double height =
-            isSuperNarrow
-                ? constraints.maxWidth / (16 / 8)
-                : isNarrow
-                ? constraints.maxWidth / (16 / 6)
-                : constraints.maxWidth / (16 / 4);
+        isSuperNarrow
+            ? constraints.maxWidth / (16 / 8)
+            : isNarrow
+            ? constraints.maxWidth / (16 / 6)
+            : constraints.maxWidth / (16 / 4);
+
+        final realIndex = _currentIndex % widget.events.length;
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -87,52 +92,57 @@ class _TodayEventRotatorState extends State<TodayEventRotator> {
             SizedBox(
               width: double.infinity,
               height: height,
-              child: AnimatedSwitcher(
-                duration: _fadeDuration,
-                child: Stack(
-                  key: ValueKey(currentEvent.id),
-                  fit: StackFit.expand,
-                  children: [
-                    HeroEventCard(event: currentEvent),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  PageView.builder(
+                    controller: _pageController,
+                    onPageChanged: _onPageChanged,
+                    itemBuilder: (context, index) {
+                      final actualIndex = index % widget.events.length;
+                      return HeroEventCard(
+                        key: ValueKey(widget.events[actualIndex].id),
+                        event: widget.events[actualIndex],
+                      );
+                    },
+                  ),
 
-                    // ⬅️ Back arrow
-                    if (widget.events.length > 1)
+                  // ⬅️ Back button
+                  if (widget.events.length > 1)
                     Positioned(
                       left: 0,
                       top: 0,
                       bottom: 0,
                       child: IconButton(
                         icon: const Icon(Icons.arrow_back_ios),
-                        onPressed: _previousEvent,
+                        onPressed: () => _goToPage(_currentIndex - 1),
                         color: Colors.white,
                       ),
                     ),
 
-                    // ➡️ Forward arrow
-                    if (widget.events.length > 1)
+                  // ➡️ Forward button
+                  if (widget.events.length > 1)
                     Positioned(
                       right: 0,
                       top: 0,
                       bottom: 0,
                       child: IconButton(
                         icon: const Icon(Icons.arrow_forward_ios),
-                        onPressed: _manualNextEvent,
+                        onPressed: () => _goToPage(_currentIndex + 1),
                         color: Colors.white,
                       ),
                     ),
 
-                    // 🔘 Dots
-                    if (widget.events.length > 1)
+                  // 🔘 Dot indicators
+                  if (widget.events.length > 1)
                     Align(
                       alignment: Alignment.bottomCenter,
                       child: Padding(
                         padding: const EdgeInsets.only(bottom: 10),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
-                          children: List.generate(widget.events.length, (
-                            index,
-                          ) {
-                            final isActive = index == _currentIndex;
+                          children: List.generate(widget.events.length, (i) {
+                            final isActive = i == realIndex;
                             return AnimatedContainer(
                               duration: const Duration(milliseconds: 300),
                               margin: const EdgeInsets.symmetric(horizontal: 4),
@@ -140,18 +150,16 @@ class _TodayEventRotatorState extends State<TodayEventRotator> {
                               height: isActive ? 12 : 8,
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
-                                color:
-                                    isActive
-                                        ? const Color(0xFF4B0B0B)
-                                        : Colors.grey[400],
+                                color: isActive
+                                    ? const Color(0xFF4B0B0B)
+                                    : Colors.grey[400],
                               ),
                             );
                           }),
                         ),
                       ),
                     ),
-                  ],
-                ),
+                ],
               ),
             ),
           ],
@@ -159,24 +167,4 @@ class _TodayEventRotatorState extends State<TodayEventRotator> {
       },
     );
   }
-
-  // // 🟣 Dot indicators
-  // Center(
-  //   child: Row(
-  //     mainAxisSize: MainAxisSize.min,
-  //     children: List.generate(widget.events.length, (index) {
-  //       final isActive = index == _currentIndex;
-  //       return AnimatedContainer(
-  //         duration: const Duration(milliseconds: 300),
-  //         margin: const EdgeInsets.symmetric(horizontal: 4),
-  //         width: isActive ? 12 : 8,
-  //         height: isActive ? 12 : 8,
-  //         decoration: BoxDecoration(
-  //           shape: BoxShape.circle,
-  //           color: isActive ? const Color(0xFF4B0B0B) : Colors.grey[400],
-  //         ),
-  //       );
-  //     }),
-  //   ),
-  // ),
 }
