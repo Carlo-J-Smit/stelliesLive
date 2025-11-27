@@ -18,6 +18,8 @@ import '../screens/about_screen.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'dart:async'; // This gives you runZonedGuarded
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 
 Future<void> _requestNotificationPermission() async {
   if (await Permission.notification.isDenied) {
@@ -41,6 +43,14 @@ void main() async {
       await Firebase.initializeApp(
         options: DefaultFirebaseOptions.currentPlatform,
       );
+
+      const useEmulator = true; // <-- toggle ON/OFF
+
+      if (useEmulator) {
+        FirebaseFirestore.instance.useFirestoreEmulator('localhost', 8080);
+        FirebaseAuth.instance.useAuthEmulator('localhost', 9099);
+        FirebaseStorage.instance.useStorageEmulator('localhost', 9199);
+      }
 
       log('🔥 Dart main started');
 

@@ -1,9 +1,11 @@
 import { onDocumentCreated } from "firebase-functions/v2/firestore";
-import * as logger from "firebase-functions/logger";
-import * as admin from "firebase-admin";
+import { initializeApp } from "firebase-admin/app";
+import { getFirestore, Timestamp } from "firebase-admin/firestore";
 
-admin.initializeApp();
-const db = admin.firestore();
+initializeApp();
+const db = getFirestore();
+
+
 const GROUP_RADIUS_METERS = 100;
 
 function distance(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -19,8 +21,8 @@ function distance(lat1: number, lon1: number, lat2: number, lon2: number): numbe
 }
 
 function inferLevel(count: number): string {
-  if (count < 30) return "Quiet";
-  if (count < 150) return "Moderate";
+  if (count < 3) return "Quiet";
+  if (count < 6) return "Moderate";
   return "Busy";
 }
 
@@ -32,10 +34,9 @@ export const handleLocationLog = onDocumentCreated(
     cpu: 1,
   },
   async (event) => {
-    logger.log("📍 Location log inserted — refreshing heatmap...");
 
     const now = Date.now();
-    const cutoff = admin.firestore.Timestamp.fromMillis(now - 30 * 60 * 1000);
+    const cutoff = Timestamp.fromMillis(now - 30 * 60 * 1000);
 
     // 🔹 Step 1: Fetch last 30 mins of logs
     const logSnap = await db.collection("location_logs")
@@ -47,7 +48,6 @@ export const handleLocationLog = onDocumentCreated(
       .filter(log => log.lat && log.lng);
 
     if (logs.length === 0) {
-      logger.log("⚠️ No logs found — skipping clustering.");
       return;
     }
 
@@ -98,7 +98,7 @@ export const handleLocationLog = onDocumentCreated(
         lng: avgLng,
         count,
         level,
-        updated: admin.firestore.Timestamp.now()
+        updated: Timestamp.now(),
       };
 
       batch.set(clusterRef.doc(id), data);
@@ -120,10 +120,10 @@ export const handleLocationLog = onDocumentCreated(
     });
 
     for (const [clusterId, cluster] of clusterDataMap.entries()) {
-      const locationScore = cluster.count < 30 ? 0 : cluster.count < 150 ? 1 : 2;
+      const locationScore = cluster.count < 3 ? 0 : cluster.count < 6 ? 1 : 2;
       const feedbackScores = feedbackMap.get(clusterId) || [];
 
-      if (cluster.count < 5 && feedbackScores.length === 0) continue;
+      if (cluster.count < 2 && feedbackScores.length === 0) continue;
 
       const feedbackScore = feedbackScores.length
         ? feedbackScores.reduce((a, b) => a + b, 0) / feedbackScores.length
@@ -136,12 +136,12 @@ export const handleLocationLog = onDocumentCreated(
         lat: cluster.lat,
         lng: cluster.lng,
         level: finalLevel,
-        updated: admin.firestore.Timestamp.now(),
+        updated: Timestamp.now(),
       });
     }
 
     await batch.commit();
-    logger.log("✅ Clusters fully rebuilt and merged.");
   }
 );
+
 

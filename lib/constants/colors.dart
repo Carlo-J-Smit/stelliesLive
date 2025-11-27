@@ -6,4 +6,5 @@ class AppColors {
   static const darkInteract = Color.fromARGB(255, 53, 46, 46);
   static const white = Colors.white;
   static const accent = Color.fromARGB(255, 58, 5, 14);
+  static const primaryRedAlpha = Color.fromARGB(50, 109, 9, 25); // same as Colors.blue[800]
 }

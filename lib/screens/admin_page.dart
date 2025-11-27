@@ -7,6 +7,19 @@ import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/services.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/foundation.dart'; // for kIsWeb
+import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'dart:typed_data'; // for web
+import 'dart:io' show File; // only for mobile
+import 'dart:html' as html; // only used on web
+
+
+
+
+
 
 
 
@@ -27,7 +40,6 @@ class _AdminPageState extends State<AdminPage> {
   final _imageUrlController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _priceController = TextEditingController();
-
   DateTime? _selectedDateTime;
   bool _isRecurring = false;
   String? _selectedDayOfWeek;
@@ -38,6 +50,13 @@ class _AdminPageState extends State<AdminPage> {
   double? _locationLat;
   double? _locationLng;
   String? _selectedTag;
+  Uint8List? _imageWebFileData;
+  File? _imageFile;
+  String? _imageUrl;
+
+
+
+
 
 
   List<DocumentSnapshot> _searchResults = [];
@@ -295,10 +314,15 @@ class _AdminPageState extends State<AdminPage> {
                 ),
               ),
 
-              TextField(
-                controller: _imageUrlController,
-                decoration: const InputDecoration(labelText: 'Image URL'),
+
+              // Conditional drag-drop on web vs button on mobile:
+              TextButton(
+                onPressed: pickImage,
+                child: const Text('Upload Image'),
               ),
+
+
+
               const SizedBox(height: 10),
               TextFormField(
                 controller: _priceController,
@@ -412,6 +436,89 @@ class _AdminPageState extends State<AdminPage> {
       ),
     );
   }
+
+  Future<void> pickImage() async {
+    print('[pickImage] called');
+    if (kIsWeb) {
+      print('[pickImage] running on Web');
+
+      final html.FileUploadInputElement uploadInput = html.FileUploadInputElement();
+      uploadInput.accept = 'image/*';
+      uploadInput.click();
+
+      uploadInput.onChange.listen((e) async {
+        final files = uploadInput.files;
+        if (files == null || files.isEmpty) {
+          print('[pickImage] No files selected');
+          return;
+        }
+
+        print('[pickImage] File selected: ${files[0].name}');
+
+        final reader = html.FileReader();
+        reader.readAsArrayBuffer(files[0]);
+
+        reader.onLoadEnd.listen((event) {
+          setState(() {
+            _imageWebFileData = reader.result as Uint8List;
+            _imageFile = null;
+          });
+          print('[pickImage] _imageWebFileData length: ${_imageWebFileData?.length}');
+        });
+      });
+    } else {
+      // MOBILE
+      print('[pickImage] running on Mobile');
+
+      try {
+        final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
+        if (picked != null) {
+          setState(() {
+            _imageFile = File(picked.path);
+            _imageWebFileData = null;
+          });
+          print('[pickImage] File selected: ${picked.path}');
+        } else {
+          print('[pickImage] No file picked');
+        }
+      } catch (e) {
+        print('[pickImage] Error picking image: $e');
+      }
+    }
+  }
+
+
+
+  Future<void> uploadEventPic(String eventId, String eventTitle) async {
+    print('[uploadEventPic] called');
+
+    final safeTitle = eventTitle.trim().replaceAll(RegExp(r'[^\w\s-]'), '_');
+    final ref = FirebaseStorage.instance
+        .ref()
+        .child('event_pics/$eventId/$safeTitle.png');
+
+    try {
+      if (kIsWeb && _imageWebFileData != null) {
+        print('[uploadEventPic] Uploading web image, size: ${_imageWebFileData!.length}');
+        await ref.putData(_imageWebFileData!);
+      } else if (_imageFile != null) {
+        print('[uploadEventPic] Uploading mobile File: ${_imageFile!.path}');
+        await ref.putFile(_imageFile!);
+      } else {
+        print('[uploadEventPic] No file to upload');
+        return;
+      }
+
+      _imageUrl = await ref.getDownloadURL();
+      print('[uploadEventPic] Upload successful, URL: $_imageUrl');
+    } catch (e) {
+      print('[uploadEventPic] Error uploading file: $e');
+    }
+  }
+
+
+
+
 
   Future<void> _openLocationPicker() async {
     final LatLng? picked = await showDialog(
@@ -555,7 +662,14 @@ class _AdminPageState extends State<AdminPage> {
     });
   }
 
+
+
+
+
   Future<void> _submitEvent() async {
+    final user = FirebaseAuth.instance.currentUser;
+    print('Logged in UID: ${user?.uid}');
+
     setState(() => _isSubmitting = true);
 
     try {
@@ -569,12 +683,17 @@ class _AdminPageState extends State<AdminPage> {
         throw Exception('Please select a time.');
       }
 
+      if (_imageFile != null || _imageWebFileData != null) {
+        await uploadEventPic(_selectedEvent?.id ?? '', _titleController.text.trim());
+      }
+
+
       final data = {
         'title': _titleController.text.trim(),
         'venue': _venueController.text.trim(),
         'category': _categoryController.text.trim(),
         'description': _descriptionController.text.trim(),
-        'imageUrl': _imageUrlController.text.trim(),
+        'imageUrl': _imageUrl,
         'titleLower': _titleController.text.trim().toLowerCase(),
         'recurring': _isRecurring,
         'price': double.tryParse(_priceController.text.trim()) ?? 0.0,
@@ -595,11 +714,20 @@ class _AdminPageState extends State<AdminPage> {
       }
 
       final tag = _selectedTag;
-      if (_selectedTag != null && _selectedTag!.isNotEmpty) {
-        data['tag'] = _selectedTag!;
+      if (_selectedEvent == null) {
+        // New event → do NOT use FieldValue.delete()
+        if (_selectedTag != null && _selectedTag!.isNotEmpty) {
+          data['tag'] = _selectedTag!;
+        }
       } else {
-        data['tag'] = FieldValue.delete(); // 🧼 clears it from Firestore
+        // Existing event → ok to use FieldValue.delete()
+        if (_selectedTag != null && _selectedTag!.isNotEmpty) {
+          data['tag'] = _selectedTag!;
+        } else {
+          data['tag'] = FieldValue.delete();
+        }
       }
+
 
 
 
@@ -630,7 +758,6 @@ class _AdminPageState extends State<AdminPage> {
         _venueController.clear();
         _categoryController.clear();
         _descriptionController.clear();
-        _imageUrlController.clear();
         _selectedDateTime = null;
         _selectedDayOfWeek = null;
         _isRecurring = false;
