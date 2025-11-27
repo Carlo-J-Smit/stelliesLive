@@ -12,9 +12,12 @@ import 'package:flutter/foundation.dart'; // for kIsWeb
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:stellieslive/constants/colors.dart';
 import 'dart:typed_data'; // for web
 import 'dart:io' show File; // only for mobile
 import 'dart:html' as html; // only used on web
+import '../models/event.dart';
+import '../widgets/event_card.dart';
 
 
 
@@ -53,6 +56,7 @@ class _AdminPageState extends State<AdminPage> {
   Uint8List? _imageWebFileData;
   File? _imageFile;
   String? _imageUrl;
+  bool _imageUploaded = false;
 
 
 
@@ -191,7 +195,29 @@ class _AdminPageState extends State<AdminPage> {
                       children: highlightMatch(doc['venue'], _searchController.text),
                     ),
                   ),
-                  onTap: () => _loadEvent(doc),
+                      onTap: () {
+                        // Clear all fields before loading new event
+                        setState(() {
+                          _titleController.clear();
+                          _venueController.clear();
+                          _categoryController.clear();
+                          _descriptionController.clear();
+                          _selectedDateTime = null;
+                          _selectedDayOfWeek = null;
+                          _isRecurring = false;
+                          _priceController.clear();
+                          _locationLat = null;
+                          _locationLng = null;
+                          _locationAddress = null;
+                          _selectedTag = null;
+                          _imageUrl = null;
+                          _imageWebFileData = null;
+                          _imageFile = null;
+                        });
+
+                        // Then load the event
+                        _loadEvent(doc);
+                      },
                   trailing: IconButton(
                     icon: const Icon(Icons.delete, color: Colors.red),
                     onPressed: () => _deleteEvent(doc),
@@ -316,10 +342,68 @@ class _AdminPageState extends State<AdminPage> {
 
 
               // Conditional drag-drop on web vs button on mobile:
-              TextButton(
-                onPressed: pickImage,
-                child: const Text('Upload Image'),
+              // Conditional image preview / upload button
+              const SizedBox(height: 10),
+              InkWell(
+                onTap: () async {
+                  // Clear previous image preview first
+                  setState(() {
+                    _imageUrl = null;
+                    _imageWebFileData = null;
+                    _imageFile = null;
+                    _imageUploaded = false;
+                  });
+
+                  // Pick a new image
+                  await pickImage(); // Make sure pickImage updates _imageUrl
+
+                  // Update uploaded state if image exists
+                  if (_imageUrl != null && _imageUrl!.isNotEmpty) {
+                    setState(() {
+                      _imageUploaded = true;
+                    });
+                  }
+                },
+                borderRadius: BorderRadius.circular(8),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[200],
+                    border: Border.all(color: Colors.grey),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.upload_file, color: AppColors.primaryRed),
+                      const SizedBox(width: 8),
+                      Text(
+                        _imageUploaded ? 'Uploaded' : 'Upload / Update Image',
+                        style: const TextStyle(
+                          color: AppColors.primaryRed,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      if (_imageUrl != null && _imageUrl!.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(left: 12),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: SizedBox(
+                              width: 80,
+                              height: 80,
+                              child: Image.network(
+                                _imageUrl!,
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
               ),
+
 
 
 
@@ -625,9 +709,10 @@ class _AdminPageState extends State<AdminPage> {
       _venueController.text = doc['venue'] ?? '';
       _categoryController.text = doc['category'] ?? '';
       _descriptionController.text = doc['description'] ?? '';
-      _imageUrlController.text = doc['imageUrl'] ?? '';
+      _imageUrl = doc['imageUrl'];
       _priceController.text = (doc['price'] as num?)?.toStringAsFixed(2) ?? '';
       _selectedTag = doc['tag'];
+
 
 
 
@@ -724,13 +809,62 @@ class _AdminPageState extends State<AdminPage> {
         if (_selectedTag != null && _selectedTag!.isNotEmpty) {
           data['tag'] = _selectedTag!;
         } else {
-          data['tag'] = FieldValue.delete();
+          data['tag'] = null;
         }
       }
 
 
+      // DISPLAY PREVIEW AND CONTINUE IF CONFIRM ELSE CANCLE AND DONT UPDATE/CREATE
+
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) {
+          final screenWidth = MediaQuery.of(context).size.width;
+          return AlertDialog(
+            title: const Text('Preview Event'),
+            content: SingleChildScrollView(
+              child: SizedBox(
+                width: screenWidth * 0.7, // 70% of screen width
+                child: EventCard(
+                  event: Event.fromMap('preview', data), // pass dummy ID for preview
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Confirm'),
+              ),
+            ],
+          );
+        },
+      );
 
 
+
+
+      if (confirmed != true) {
+        // User cancelled, don't submit
+        return;
+      }
+
+      if (_selectedEvent == null) {
+        // New event → do NOT use FieldValue.delete()
+        if (_selectedTag != null && _selectedTag!.isNotEmpty) {
+          data['tag'] = _selectedTag!;
+        }
+      } else {
+        // Existing event → ok to use FieldValue.delete()
+        if (_selectedTag != null && _selectedTag!.isNotEmpty) {
+          data['tag'] = _selectedTag!;
+        } else {
+          data['tag'] = FieldValue.delete();
+        }
+      }
 
 
       if (_selectedEvent == null) {
@@ -766,6 +900,9 @@ class _AdminPageState extends State<AdminPage> {
         _locationLng = null;
         _locationAddress = null;
         _selectedTag = null;
+        _imageUrl = null;
+        _imageWebFileData = null;
+        _imageFile = null;
 
 
       });
@@ -822,6 +959,12 @@ class _AdminPageState extends State<AdminPage> {
       }
     }
   }
+
+
+
+
+
+
 
   void _deleteEvent(DocumentSnapshot doc) async {
     final confirm = await showDialog<bool>(
