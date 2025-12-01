@@ -627,14 +627,16 @@ class _AdminPageState extends State<AdminPage> {
   // }
 
   Future<void> uploadEventPic(String eventId, String eventTitle) async {
-    if (_pickedImage == null) return;
+    if (_pickedImage == null && _pickedBytes == null) return;
 
-    final String safeTitle =
-    eventTitle.trim().replaceAll(RegExp(r'[^\w\s-]'), '_');
+    // Replace spaces and slashes with underscores
+    final safeTitle = eventTitle.trim().replaceAll(RegExp(r'\s+'), '_').replaceAll('/', '_');
 
-    final Reference ref = FirebaseStorage.instance
-        .ref()
-        .child('event_pics/$eventId/$safeTitle.png');
+
+
+    // Upload path
+    final String path = 'event_pics/$eventId/$safeTitle.png';
+    final Reference ref = FirebaseStorage.instance.ref().child(path);
 
     if (kIsWeb) {
       await ref.putData(_pickedBytes!, SettableMetadata(contentType: 'image/png'));
@@ -642,8 +644,10 @@ class _AdminPageState extends State<AdminPage> {
       await ref.putFile(File(_pickedImage!.path));
     }
 
+    // Store the exact URL in Firestore for deletion later
     _imageUrl = await ref.getDownloadURL();
   }
+
 
 
 
@@ -798,70 +802,37 @@ class _AdminPageState extends State<AdminPage> {
 
 
   Future<void> _submitEvent() async {
-    final user = FirebaseAuth.instance.currentUser;
-    print('Logged in UID: ${user?.uid}');
-
     setState(() => _isSubmitting = true);
 
     try {
-      if (!_isRecurring && _selectedDateTime == null) {
-        throw Exception('Please select a date.');
-      }
-      if (_isRecurring && _selectedDayOfWeek == null) {
-        throw Exception('Please select a day of the week.');
-      }
-      if (_isRecurring && _selectedDateTime == null) {
-        throw Exception('Please select a time.');
-      }
+      // Validation
+      if (!_isRecurring && _selectedDateTime == null) throw Exception('Please select a date.');
+      if (_isRecurring && _selectedDayOfWeek == null) throw Exception('Please select a day of the week.');
+      if (_isRecurring && _selectedDateTime == null) throw Exception('Please select a time.');
 
-      if (_pickedImage != null || _pickedBytes != null) {
-        await uploadEventPic(_selectedEvent?.id ?? '', _titleController.text.trim());
-      }
-
-
-      final data = {
+      // Prepare data for preview
+      final previewData = {
         'title': _titleController.text.trim(),
         'venue': _venueController.text.trim(),
         'category': _categoryController.text.trim(),
         'description': _descriptionController.text.trim(),
-        'imageUrl': _imageUrl,
+        'imageUrl': _imageUrl ?? '', // use existing or null
         'titleLower': _titleController.text.trim().toLowerCase(),
         'recurring': _isRecurring,
         'price': double.tryParse(_priceController.text.trim()) ?? 0.0,
+        'dayOfWeek': _selectedDayOfWeek,
+        'dateTime': _selectedDateTime != null ? Timestamp.fromDate(_selectedDateTime!) : null,
+        'location': _locationLat != null && _locationLng != null
+            ? {
+          'lat': _locationLat,
+          'lng': _locationLng,
+          'address': _locationAddress ?? '',
+        }
+            : null,
+        'tag': _selectedTag,
       };
 
-      if (_isRecurring && _selectedDayOfWeek != null && _selectedDateTime != null) {
-        data['dayOfWeek'] = _selectedDayOfWeek!;
-        data['dateTime'] = Timestamp.fromDate(_selectedDateTime!);
-      } else if (_selectedDateTime != null) {
-        data['dateTime'] = Timestamp.fromDate(_selectedDateTime!);
-      }
-      if (_locationLat != null && _locationLng != null) {
-      data['location'] = {
-      'lat': _locationLat,
-      'lng': _locationLng,
-      'address': _locationAddress ?? '',
-      };
-      }
-
-      final tag = _selectedTag;
-      if (_selectedEvent == null) {
-        // New event → do NOT use FieldValue.delete()
-        if (_selectedTag != null && _selectedTag!.isNotEmpty) {
-          data['tag'] = _selectedTag!;
-        }
-      } else {
-        // Existing event → ok to use FieldValue.delete()
-        if (_selectedTag != null && _selectedTag!.isNotEmpty) {
-          data['tag'] = _selectedTag!;
-        } else {
-          data['tag'] = null;
-        }
-      }
-
-
-      // DISPLAY PREVIEW AND CONTINUE IF CONFIRM ELSE CANCLE AND DONT UPDATE/CREATE
-
+      // Show preview
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (context) {
@@ -870,66 +841,49 @@ class _AdminPageState extends State<AdminPage> {
             title: const Text('Preview Event'),
             content: SingleChildScrollView(
               child: SizedBox(
-                width: screenWidth * 0.7, // 70% of screen width
+                width: screenWidth * 0.7,
                 child: EventCard(
-                  event: Event.fromMap('preview', data), // pass dummy ID for preview
+                  event: Event.fromMap('preview', previewData),
+                  pickedBytes: _pickedBytes, // use picked image for preview
+                  pickedFile: _pickedImage,
                 ),
               ),
             ),
             actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('Cancel'),
-              ),
-              ElevatedButton(
-                onPressed: () => Navigator.pop(context, true),
-                child: const Text('Confirm'),
-              ),
+              TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+              ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('Confirm')),
             ],
           );
         },
       );
 
+      if (confirmed != true) return; // user cancelled
 
+      // Prepare Firestore data
+      final data = Map<String, dynamic>.from(previewData)..remove('imageUrl'); // remove temp preview image
 
-
-      if (confirmed != true) {
-        // User cancelled, don't submit
-        return;
-      }
-
+      // Create or update event
+      DocumentReference eventRef;
       if (_selectedEvent == null) {
-        // New event → do NOT use FieldValue.delete()
-        if (_selectedTag != null && _selectedTag!.isNotEmpty) {
-          data['tag'] = _selectedTag!;
-        }
+        eventRef = await FirebaseFirestore.instance.collection('events').add(data);
       } else {
-        // Existing event → ok to use FieldValue.delete()
-        if (_selectedTag != null && _selectedTag!.isNotEmpty) {
-          data['tag'] = _selectedTag!;
-        } else {
-          data['tag'] = FieldValue.delete();
-        }
+        eventRef = FirebaseFirestore.instance.collection('events').doc(_selectedEvent!.id);
+        await eventRef.update(data);
       }
 
-
-      if (_selectedEvent == null) {
-        await FirebaseFirestore.instance.collection('events').add(data);
-      } else {
-        await FirebaseFirestore.instance
-            .collection('events')
-            .doc(_selectedEvent!.id)
-            .update(data);
+      // Upload image if picked
+      if (_pickedImage != null || _pickedBytes != null) {
+        await uploadEventPic(eventRef.id, _titleController.text.trim());
+        // Update Firestore with actual download URL
+        await eventRef.update({'imageUrl': _imageUrl});
       }
 
+      // Success message
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            _selectedEvent == null ? 'Event created.' : 'Event updated.',
-          ),
-        ),
+        SnackBar(content: Text(_selectedEvent == null ? 'Event created.' : 'Event updated.')),
       );
 
+      // Reset state
       setState(() {
         _selectedEvent = null;
         _searchResults = [];
@@ -949,8 +903,6 @@ class _AdminPageState extends State<AdminPage> {
         _imageUrl = null;
         _pickedBytes = null;
         _pickedImage = null;
-
-
       });
     } catch (e) {
       setState(() => _error = e.toString());
@@ -958,6 +910,7 @@ class _AdminPageState extends State<AdminPage> {
       setState(() => _isSubmitting = false);
     }
   }
+
 
   Future<void> _pickDateTime() async {
     final now = DateTime.now();

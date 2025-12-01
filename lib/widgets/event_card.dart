@@ -4,12 +4,23 @@ import 'package:flutter/material.dart';
 import '../models/event.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:intl/intl.dart';
-import '../constants/colors.dart';
+import 'package:flutter/foundation.dart'; // for kIsWeb
+import 'package:image_picker/image_picker.dart';
+
+import 'dart:typed_data'; // for web
+import 'dart:io' show File; // only for mobile
 
 class EventCard extends StatefulWidget {
   final Event event;
+  final Uint8List? pickedBytes; // optional web image
+  final XFile? pickedFile;      // optional mobile image
 
-  const EventCard({super.key, required this.event});
+  const EventCard({
+    super.key,
+    required this.event,
+    this.pickedBytes,
+    this.pickedFile,
+  });
 
   @override
   State<EventCard> createState() => _EventCardState();
@@ -30,8 +41,17 @@ class _EventCardState extends State<EventCard> {
   @override
   Widget build(BuildContext context) {
     final event = widget.event;
-    final hasImage = event.imageUrl != null && event.imageUrl!.isNotEmpty;
-    //print('Event "${event.title}" has location: ${event.lat}, ${event.lng}');
+
+    // Determine which image to show: picked (preview) > network image
+    Widget? imageWidget;
+    if (widget.pickedBytes != null) {
+      imageWidget = Image.memory(widget.pickedBytes!, width: 100, height: 100, fit: BoxFit.cover);
+    } else if (widget.pickedFile != null) {
+      imageWidget = Image.file(File(widget.pickedFile!.path), width: 100, height: 100, fit: BoxFit.cover);
+    } else if (event.imageUrl != null && event.imageUrl!.isNotEmpty) {
+      imageWidget = Image.network(event.imageUrl!, width: 100, height: 100, fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => const SizedBox());
+    }
 
     return GestureDetector(
       onTap: _toggleExpanded,
@@ -54,35 +74,18 @@ class _EventCardState extends State<EventCard> {
                 children: [
                   Row(
                     children: [
-                      if (hasImage)
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: Image.network(
-                            event.imageUrl!,
-                            width: 100,
-                            height: 100,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => const SizedBox(),
-                          ),
-                        ),
-                      if (hasImage) const SizedBox(width: 16),
+                      if (imageWidget != null) ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: imageWidget,
+                      ),
+                      if (imageWidget != null) const SizedBox(width: 16),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              event.title,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                            ),
+                            Text(event.title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                             const SizedBox(height: 4),
-                            if (event.venue.isNotEmpty)
-                              Text(
-                                event.venue,
-                                style: const TextStyle(color: Colors.grey),
-                              ),
+                            if (event.venue.isNotEmpty) Text(event.venue, style: const TextStyle(color: Colors.grey)),
                             const SizedBox(height: 2),
                             Text(
                               event.recurring == true
@@ -93,34 +96,21 @@ class _EventCardState extends State<EventCard> {
                             const SizedBox(height: 2),
                             if (event.price != null)
                               Text(
-                                event.price! > 0
-                                    ? _formatPrice(event.price!)
-                                    : 'Free',
+                                event.price! > 0 ? _formatPrice(event.price!) : 'Free',
                                 style: TextStyle(
-                                  color:
-                                      event.price! > 0
-                                          ? Colors.red
-                                          : Colors.blueGrey,
+                                  color: event.price! > 0 ? Colors.red : Colors.blueGrey,
                                   fontWeight: FontWeight.w500,
                                 ),
                               ),
                           ],
                         ),
                       ),
-                      Icon(
-                        _isExpanded ? Icons.expand_less : Icons.expand_more,
-                        color: Colors.grey[600],
-                      ),
+                      Icon(_isExpanded ? Icons.expand_less : Icons.expand_more, color: Colors.grey[600]),
                     ],
                   ),
-                  if (_isExpanded &&
-                      event.description != null &&
-                      event.description!.isNotEmpty) ...[
+                  if (_isExpanded && event.description != null && event.description!.isNotEmpty) ...[
                     const SizedBox(height: 12),
-                    Text(
-                      event.description!,
-                      style: const TextStyle(color: Colors.black87),
-                    ),
+                    Text(event.description!, style: const TextStyle(color: Colors.black87)),
                   ],
                   if (event.lat != null && event.lng != null)
                     TextButton.icon(
@@ -136,8 +126,6 @@ class _EventCardState extends State<EventCard> {
                 ],
               ),
             ),
-
-            // 🎟️ Tag Badge (top-right)
             if (event.tag != null && event.tag!.isNotEmpty)
               Positioned(
                 top: 0,
@@ -153,28 +141,19 @@ class _EventCardState extends State<EventCard> {
                     children: [
                       Icon(_tagIcon(event.tag!), color: Colors.white, size: 14),
                       const SizedBox(width: 4),
-                      Text(
-                        event.tag!,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
-                        ),
-                      ),
+                      Text(event.tag!, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
                     ],
                   ),
                 ),
               ),
-
           ],
         ),
       ),
     );
   }
 
-  String _formatDateTime(DateTime dt) {
-    return "${dt.day}/${dt.month}/${dt.year} @ ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}";
-  }
+  String _formatDateTime(DateTime dt) => "${dt.day}/${dt.month}/${dt.year} @ ${dt.hour.toString().padLeft(2,'0')}:${dt.minute.toString().padLeft(2,'0')}";
+
 
   Color _tagColor(String tag) {
     switch (tag) {

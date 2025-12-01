@@ -156,7 +156,6 @@ export const cleanUpOldEvents = onDocumentWritten(
     cpu: 1,
   },
   async () => {
-
     const cutoff = Timestamp.fromMillis(Date.now() - 24 * 60 * 60 * 1000);
 
     const snap = await db.collection("events")
@@ -165,34 +164,42 @@ export const cleanUpOldEvents = onDocumentWritten(
       .get();
 
     if (snap.empty) {
-      console.log("No expired events to delete");
+      console.log("No old events to clean up.");
       return;
     }
 
+    let deletedFiles = 0;
+    let deletedEvents = 0;
     const batch = db.batch();
 
     for (const doc of snap.docs) {
-      const data = doc.data();
-      const id = doc.id;
-
-      const safeTitle = String(data.title || "")
-        .trim()
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "_");
-
-      const filePath = `event_pics/${id}/${safeTitle}.png`;
+      const eventId = doc.id;
+      const folderPrefix = `event_pics/${eventId}/`;
 
       try {
-        await storageBucket.file(filePath).delete();
-        console.log(`Deleted event image: ${filePath}`);
-      } catch (e) {
-        console.warn(`Image missing or cannot delete: ${filePath}`);
+        // Get all files under the folder
+        const [files] = await storageBucket.getFiles({ prefix: folderPrefix });
+
+        for (const file of files) {
+          try {
+            await file.delete();
+            deletedFiles++;
+            console.log(`Deleted file: ${file.name}`);
+          } catch (err) {
+            console.error(`Cannot delete file ${file.name}:`, err);
+          }
+        }
+      } catch (err) {
+        console.error(`Error fetching files for event ${eventId}:`, err);
       }
 
+      // Delete Firestore document
       batch.delete(doc.ref);
+      deletedEvents++;
     }
 
     await batch.commit();
-    console.log(`Deleted ${snap.size} expired events and images.`);
+    console.log(`Deleted ${deletedEvents} expired events and ${deletedFiles} images.`);
   }
 );
+
