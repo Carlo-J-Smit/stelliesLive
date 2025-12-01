@@ -21,13 +21,6 @@ import '../widgets/event_card.dart';
 
 
 
-
-
-
-
-
-
-
 class AdminPage extends StatefulWidget {
   const AdminPage({super.key});
 

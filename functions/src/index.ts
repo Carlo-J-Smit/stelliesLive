@@ -1,9 +1,12 @@
 import { onDocumentCreated } from "firebase-functions/v2/firestore";
+import { onDocumentWritten } from "firebase-functions/v2/firestore";
 import { initializeApp } from "firebase-admin/app";
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
+import { getStorage } from "firebase-admin/storage";
 
 initializeApp();
 const db = getFirestore();
+const storageBucket = getStorage().bucket();
 
 
 const GROUP_RADIUS_METERS = 100;
@@ -145,3 +148,51 @@ export const handleLocationLog = onDocumentCreated(
 );
 
 
+export const cleanUpOldEvents = onDocumentWritten(
+  {
+    document: "events/{eventId}",
+    region: "africa-south1",
+    memory: "256MiB",
+    cpu: 1,
+  },
+  async () => {
+
+    const cutoff = Timestamp.fromMillis(Date.now() - 24 * 60 * 60 * 1000);
+
+    const snap = await db.collection("events")
+      .where("recurring", "==", false)
+      .where("dateTime", "<", cutoff)
+      .get();
+
+    if (snap.empty) {
+      console.log("No expired events to delete");
+      return;
+    }
+
+    const batch = db.batch();
+
+    for (const doc of snap.docs) {
+      const data = doc.data();
+      const id = doc.id;
+
+      const safeTitle = String(data.title || "")
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "_");
+
+      const filePath = `event_pics/${id}/${safeTitle}.png`;
+
+      try {
+        await storageBucket.file(filePath).delete();
+        console.log(`Deleted event image: ${filePath}`);
+      } catch (e) {
+        console.warn(`Image missing or cannot delete: ${filePath}`);
+      }
+
+      batch.delete(doc.ref);
+    }
+
+    await batch.commit();
+    console.log(`Deleted ${snap.size} expired events and images.`);
+  }
+);
