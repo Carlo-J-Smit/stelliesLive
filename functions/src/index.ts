@@ -148,36 +148,30 @@ export const handleLocationLog = onDocumentCreated(
 );
 
 
-export const cleanUpOldEvents = onDocumentWritten(
+export const cleanUpOldEvents = onDocumentUpdated(
   {
     document: "events/{eventId}",
     region: "africa-south1",
     memory: "256MiB",
     cpu: 1,
   },
-  async () => {
-    const cutoff = Timestamp.fromMillis(Date.now() - 24 * 60 * 60 * 1000);
+  async (change) => {
+    const eventId = change.after.id;
+    const docData = change.after.data();
 
-    const snap = await db.collection("events")
-      .where("recurring", "==", false)
-      .where("dateTime", "<", cutoff)
-      .get();
-
-    if (snap.empty) {
-      console.log("No old events to clean up.");
+    if (!docData) {
+      console.log(`Event ${eventId} has no data, skipping.`);
       return;
     }
 
-    let deletedFiles = 0;
-    let deletedEvents = 0;
-    const batch = db.batch();
-
-    for (const doc of snap.docs) {
-      const eventId = doc.id;
+    // Only proceed if event is non-recurring and date is more than 24h ago
+    const eventTime = docData.dateTime?.toMillis?.();
+    if (!docData.recurring && eventTime && eventTime < Date.now() - 24 * 60 * 60 * 1000) {
       const folderPrefix = `event_pics/${eventId}/`;
+      let deletedFiles = 0;
 
       try {
-        // Get all files under the folder
+        // Get all files in the event folder
         const [files] = await storageBucket.getFiles({ prefix: folderPrefix });
 
         for (const file of files) {
@@ -189,17 +183,15 @@ export const cleanUpOldEvents = onDocumentWritten(
             console.error(`Cannot delete file ${file.name}:`, err);
           }
         }
+
+        // Delete Firestore event document
+        await change.after.ref.delete();
+        console.log(`Deleted event ${eventId} and ${deletedFiles} image(s).`);
       } catch (err) {
-        console.error(`Error fetching files for event ${eventId}:`, err);
+        console.error(`Error cleaning up event ${eventId}:`, err);
       }
-
-      // Delete Firestore document
-      batch.delete(doc.ref);
-      deletedEvents++;
+    } else {
+      console.log(`Event ${eventId} not expired or recurring, skipping cleanup.`);
     }
-
-    await batch.commit();
-    console.log(`Deleted ${deletedEvents} expired events and ${deletedFiles} images.`);
   }
 );
-

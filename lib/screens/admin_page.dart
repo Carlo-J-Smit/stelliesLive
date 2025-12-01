@@ -630,8 +630,10 @@ class _AdminPageState extends State<AdminPage> {
     if (_pickedImage == null && _pickedBytes == null) return;
 
     // Replace spaces and slashes with underscores
-    final safeTitle = eventTitle.trim().replaceAll(RegExp(r'\s+'), '_').replaceAll('/', '_');
-
+    final safeTitle = eventTitle
+        .trim()
+        .replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_') // replace anything not alphanumeric with _
+        .replaceAll(RegExp(r'_+'), '_');           // collapse multiple _ into single _
 
 
     // Upload path
