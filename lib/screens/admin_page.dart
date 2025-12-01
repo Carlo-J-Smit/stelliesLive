@@ -15,7 +15,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:stellieslive/constants/colors.dart';
 import 'dart:typed_data'; // for web
 import 'dart:io' show File; // only for mobile
-import 'dart:html' as html; // only used on web
+//import 'dart:html' as html; // only used on web
 import '../models/event.dart';
 import '../widgets/event_card.dart';
 
@@ -46,10 +46,13 @@ class _AdminPageState extends State<AdminPage> {
   double? _locationLat;
   double? _locationLng;
   String? _selectedTag;
-  Uint8List? _imageWebFileData;
-  File? _imageFile;
+  //Uint8List? _imageWebFileData;
+  //File? _imageFile;
   String? _imageUrl;
   bool _imageUploaded = false;
+  XFile? _pickedImage;
+  Uint8List? _pickedBytes; // only used on Web
+
 
 
 
@@ -69,6 +72,25 @@ class _AdminPageState extends State<AdminPage> {
     final formatter = NumberFormat.currency(symbol: 'R', decimalDigits: 0);
     return formatter.format(price);
   }
+
+  Widget _buildImagePreview() {
+    if (_pickedImage != null) {
+      // User picked a new image
+      return kIsWeb
+          ? (_pickedBytes != null
+          ? Image.memory(_pickedBytes!, fit: BoxFit.cover)
+          : const SizedBox())
+          : Image.file(File(_pickedImage!.path), fit: BoxFit.cover);
+    }
+
+    // Show existing image from Firestore
+    if (_imageUrl != null && _imageUrl!.isNotEmpty) {
+      return Image.network(_imageUrl!, fit: BoxFit.cover);
+    }
+
+    return const SizedBox();
+  }
+
 
   List<TextSpan> highlightMatch(String source, String query) {
     if (query.isEmpty) return [TextSpan(text: source)];
@@ -204,8 +226,8 @@ class _AdminPageState extends State<AdminPage> {
                           _locationAddress = null;
                           _selectedTag = null;
                           _imageUrl = null;
-                          _imageWebFileData = null;
-                          _imageFile = null;
+                          _pickedBytes = null;
+                          _pickedImage = null;
                         });
 
                         // Then load the event
@@ -342,8 +364,8 @@ class _AdminPageState extends State<AdminPage> {
                   // Clear previous image preview first
                   setState(() {
                     _imageUrl = null;
-                    _imageWebFileData = null;
-                    _imageFile = null;
+                    _pickedBytes = null;
+                    _pickedImage = null;
                     _imageUploaded = false;
                   });
 
@@ -377,21 +399,17 @@ class _AdminPageState extends State<AdminPage> {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      if (_imageUrl != null && _imageUrl!.isNotEmpty)
+                      if (_pickedImage != null || (_imageUrl != null && _imageUrl!.isNotEmpty))
                         Padding(
                           padding: const EdgeInsets.only(left: 12),
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(8),
-                            child: SizedBox(
-                              width: 80,
-                              height: 80,
-                              child: Image.network(
-                                _imageUrl!,
-                                fit: BoxFit.cover,
-                              ),
-                            ),
+                            child: SizedBox(width: 80, height: 80, child: _buildImagePreview()),
                           ),
                         ),
+
+
+
                     ],
                   ),
                 ),
@@ -514,84 +532,119 @@ class _AdminPageState extends State<AdminPage> {
     );
   }
 
+  // Future<void> pickImage() async {
+  //   print('[pickImage] called');
+  //   if (kIsWeb) {
+  //     print('[pickImage] running on Web');
+  //
+  //     final html.FileUploadInputElement uploadInput = html.FileUploadInputElement();
+  //     uploadInput.accept = 'image/*';
+  //     uploadInput.click();
+  //
+  //     uploadInput.onChange.listen((e) async {
+  //       final files = uploadInput.files;
+  //       if (files == null || files.isEmpty) {
+  //         print('[pickImage] No files selected');
+  //         return;
+  //       }
+  //
+  //       print('[pickImage] File selected: ${files[0].name}');
+  //
+  //       final reader = html.FileReader();
+  //       reader.readAsArrayBuffer(files[0]);
+  //
+  //       reader.onLoadEnd.listen((event) {
+  //         setState(() {
+  //           _imageWebFileData = reader.result as Uint8List;
+  //           _imageFile = null;
+  //         });
+  //         print('[pickImage] _imageWebFileData length: ${_imageWebFileData?.length}');
+  //       });
+  //     });
+  //   } else {
+  //     // MOBILE
+  //     print('[pickImage] running on Mobile');
+  //
+  //     try {
+  //       final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
+  //       if (picked != null) {
+  //         setState(() {
+  //           _imageFile = File(picked.path);
+  //           _imageWebFileData = null;
+  //         });
+  //         print('[pickImage] File selected: ${picked.path}');
+  //       } else {
+  //         print('[pickImage] No file picked');
+  //       }
+  //     } catch (e) {
+  //       print('[pickImage] Error picking image: $e');
+  //     }
+  //   }
+  // }
+
   Future<void> pickImage() async {
-    print('[pickImage] called');
+    final ImagePicker picker = ImagePicker();
+    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+
+    if (image == null) return; // user cancelled
+
+    setState(() => _pickedImage = image);
+
     if (kIsWeb) {
-      print('[pickImage] running on Web');
-
-      final html.FileUploadInputElement uploadInput = html.FileUploadInputElement();
-      uploadInput.accept = 'image/*';
-      uploadInput.click();
-
-      uploadInput.onChange.listen((e) async {
-        final files = uploadInput.files;
-        if (files == null || files.isEmpty) {
-          print('[pickImage] No files selected');
-          return;
-        }
-
-        print('[pickImage] File selected: ${files[0].name}');
-
-        final reader = html.FileReader();
-        reader.readAsArrayBuffer(files[0]);
-
-        reader.onLoadEnd.listen((event) {
-          setState(() {
-            _imageWebFileData = reader.result as Uint8List;
-            _imageFile = null;
-          });
-          print('[pickImage] _imageWebFileData length: ${_imageWebFileData?.length}');
-        });
-      });
-    } else {
-      // MOBILE
-      print('[pickImage] running on Mobile');
-
-      try {
-        final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
-        if (picked != null) {
-          setState(() {
-            _imageFile = File(picked.path);
-            _imageWebFileData = null;
-          });
-          print('[pickImage] File selected: ${picked.path}');
-        } else {
-          print('[pickImage] No file picked');
-        }
-      } catch (e) {
-        print('[pickImage] Error picking image: $e');
-      }
+      // web: read as bytes
+      _pickedBytes = await image.readAsBytes();
     }
   }
 
 
 
-  Future<void> uploadEventPic(String eventId, String eventTitle) async {
-    print('[uploadEventPic] called');
 
-    final safeTitle = eventTitle.trim().replaceAll(RegExp(r'[^\w\s-]'), '_');
-    final ref = FirebaseStorage.instance
+  // Future<void> uploadEventPic(String eventId, String eventTitle) async {
+  //   print('[uploadEventPic] called');
+  //
+  //   final safeTitle = eventTitle.trim().replaceAll(RegExp(r'[^\w\s-]'), '_');
+  //   final ref = FirebaseStorage.instance
+  //       .ref()
+  //       .child('event_pics/$eventId/$safeTitle.png');
+  //
+  //   try {
+  //     if (kIsWeb && _imageWebFileData != null) {
+  //       print('[uploadEventPic] Uploading web image, size: ${_imageWebFileData!.length}');
+  //       await ref.putData(_imageWebFileData!);
+  //     } else if (_imageFile != null) {
+  //       print('[uploadEventPic] Uploading mobile File: ${_imageFile!.path}');
+  //       await ref.putFile(_imageFile!);
+  //     } else {
+  //       print('[uploadEventPic] No file to upload');
+  //       return;
+  //     }
+  //
+  //     _imageUrl = await ref.getDownloadURL();
+  //     print('[uploadEventPic] Upload successful, URL: $_imageUrl');
+  //   } catch (e) {
+  //     print('[uploadEventPic] Error uploading file: $e');
+  //   }
+  // }
+
+  Future<void> uploadEventPic(String eventId, String eventTitle) async {
+    if (_pickedImage == null) return;
+
+    final String safeTitle =
+    eventTitle.trim().replaceAll(RegExp(r'[^\w\s-]'), '_');
+
+    final Reference ref = FirebaseStorage.instance
         .ref()
         .child('event_pics/$eventId/$safeTitle.png');
 
-    try {
-      if (kIsWeb && _imageWebFileData != null) {
-        print('[uploadEventPic] Uploading web image, size: ${_imageWebFileData!.length}');
-        await ref.putData(_imageWebFileData!);
-      } else if (_imageFile != null) {
-        print('[uploadEventPic] Uploading mobile File: ${_imageFile!.path}');
-        await ref.putFile(_imageFile!);
-      } else {
-        print('[uploadEventPic] No file to upload');
-        return;
-      }
-
-      _imageUrl = await ref.getDownloadURL();
-      print('[uploadEventPic] Upload successful, URL: $_imageUrl');
-    } catch (e) {
-      print('[uploadEventPic] Error uploading file: $e');
+    if (kIsWeb) {
+      await ref.putData(_pickedBytes!, SettableMetadata(contentType: 'image/png'));
+    } else {
+      await ref.putFile(File(_pickedImage!.path));
     }
+
+    _imageUrl = await ref.getDownloadURL();
   }
+
 
 
 
@@ -761,7 +814,7 @@ class _AdminPageState extends State<AdminPage> {
         throw Exception('Please select a time.');
       }
 
-      if (_imageFile != null || _imageWebFileData != null) {
+      if (_pickedImage != null || _pickedBytes != null) {
         await uploadEventPic(_selectedEvent?.id ?? '', _titleController.text.trim());
       }
 
@@ -894,8 +947,8 @@ class _AdminPageState extends State<AdminPage> {
         _locationAddress = null;
         _selectedTag = null;
         _imageUrl = null;
-        _imageWebFileData = null;
-        _imageFile = null;
+        _pickedBytes = null;
+        _pickedImage = null;
 
 
       });
