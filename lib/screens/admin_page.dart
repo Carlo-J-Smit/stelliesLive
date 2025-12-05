@@ -596,36 +596,6 @@ class _AdminPageState extends State<AdminPage> {
     }
   }
 
-
-
-
-  // Future<void> uploadEventPic(String eventId, String eventTitle) async {
-  //   print('[uploadEventPic] called');
-  //
-  //   final safeTitle = eventTitle.trim().replaceAll(RegExp(r'[^\w\s-]'), '_');
-  //   final ref = FirebaseStorage.instance
-  //       .ref()
-  //       .child('event_pics/$eventId/$safeTitle.png');
-  //
-  //   try {
-  //     if (kIsWeb && _imageWebFileData != null) {
-  //       print('[uploadEventPic] Uploading web image, size: ${_imageWebFileData!.length}');
-  //       await ref.putData(_imageWebFileData!);
-  //     } else if (_imageFile != null) {
-  //       print('[uploadEventPic] Uploading mobile File: ${_imageFile!.path}');
-  //       await ref.putFile(_imageFile!);
-  //     } else {
-  //       print('[uploadEventPic] No file to upload');
-  //       return;
-  //     }
-  //
-  //     _imageUrl = await ref.getDownloadURL();
-  //     print('[uploadEventPic] Upload successful, URL: $_imageUrl');
-  //   } catch (e) {
-  //     print('[uploadEventPic] Error uploading file: $e');
-  //   }
-  // }
-
   Future<void> uploadEventPic(String eventId, String eventTitle) async {
     if (_pickedImage == null && _pickedBytes == null) return;
 
