@@ -1,5 +1,7 @@
-import { onDocumentCreated } from "firebase-functions/v2/firestore";
-import { onDocumentWritten } from "firebase-functions/v2/firestore";
+import {
+  onDocumentCreated,
+  onDocumentUpdated,
+} from "firebase-functions/v2/firestore";
 import { initializeApp } from "firebase-admin/app";
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
@@ -155,23 +157,28 @@ export const cleanUpOldEvents = onDocumentUpdated(
     memory: "256MiB",
     cpu: 1,
   },
-  async (change) => {
-    const eventId = change.after.id;
-    const docData = change.after.data();
+  async (event) => {
+
+    const change = event.data;
+    if (!change) return; // TS-safe: event.data can be undefined
+
+    const after = change.after; // OK now
+    const eventId = after.id;
+    const docData = after.data();
 
     if (!docData) {
       console.log(`Event ${eventId} has no data, skipping.`);
       return;
     }
 
-    // Only proceed if event is non-recurring and date is more than 24h ago
     const eventTime = docData.dateTime?.toMillis?.();
+
+    // Only delete if single-use and event was >24h ago
     if (!docData.recurring && eventTime && eventTime < Date.now() - 24 * 60 * 60 * 1000) {
       const folderPrefix = `event_pics/${eventId}/`;
       let deletedFiles = 0;
 
       try {
-        // Get all files in the event folder
         const [files] = await storageBucket.getFiles({ prefix: folderPrefix });
 
         for (const file of files) {
@@ -184,8 +191,7 @@ export const cleanUpOldEvents = onDocumentUpdated(
           }
         }
 
-        // Delete Firestore event document
-        await change.after.ref.delete();
+        await after.ref.delete();
         console.log(`Deleted event ${eventId} and ${deletedFiles} image(s).`);
       } catch (err) {
         console.error(`Error cleaning up event ${eventId}:`, err);
@@ -195,3 +201,4 @@ export const cleanUpOldEvents = onDocumentUpdated(
     }
   }
 );
+

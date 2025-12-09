@@ -105,14 +105,28 @@ class _AuthScreenState extends State<AuthScreen> {
           password: password,
         );
 
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(userCredential.user!.uid)
-            .set({
+        final uid = userCredential.user!.uid;
+        final userRef = FirebaseFirestore.instance.collection('users').doc(uid);
+
+// 1. Create/merge the main user document
+        await userRef.set({
           'email': emailToUse,
           'username_or_cell': identifier,
           'role': emailToUse == 'admin@gmail.com' ? 'admin' : 'user',
-        });
+        }, SetOptions(merge: true));
+
+// 2. Create default notification preferences
+        await userRef
+            .collection('notificationPreferences')
+            .doc('settings')
+            .set({
+          'category_default': true,
+          'category_busy': true,
+          'quiet_hours_enabled': false,
+          'quiet_start': "22:00",
+          'quiet_end': "07:00",
+        }, SetOptions(merge: true));
+
       }
 
       if (context.mounted) Navigator.pop(context);

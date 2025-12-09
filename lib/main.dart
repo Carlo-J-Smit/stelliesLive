@@ -20,11 +20,11 @@ import 'dart:async'; // This gives you runZonedGuarded
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:stellieslive/services/messaging_service.dart';
+import 'firebase_options.dart'; // If you have generated firebase options
 
 Future<void> _requestNotificationPermission() async {
-  if (await Permission.notification.isDenied) {
-    await Permission.notification.request();
-  }
+  //
 }
 
 void log(String message) => print(message);
@@ -44,7 +44,10 @@ void main() async {
         options: DefaultFirebaseOptions.currentPlatform,
       );
 
-      const useEmulator = true; // <-- toggle ON/OFF
+      await MessagingService().init();
+
+
+      const useEmulator = false; // <-- toggle ON/OFF
 
       if (useEmulator) {
         FirebaseFirestore.instance.useFirestoreEmulator('localhost', 8080);
@@ -63,42 +66,7 @@ void main() async {
       // ✅ Initialize Firebase Performance
       FirebasePerformance performance = FirebasePerformance.instance;
 
-      //Notifications
-      //await NotificationService.init();
-
-      // // Step 1: Create Android Notification Channel
-      //   await _requestNotificationPermission();
-      //
-      //   const AndroidNotificationChannel channel = AndroidNotificationChannel(
-      //     'high_importance_channel', // id
-      //     'High Importance Notifications', // title
-      //     description: 'This channel is used for important notifications.', // description
-      //     importance: Importance.high,
-      //   );
-      //
-      // // Step 2: Initialize the plugin
-      //   const AndroidInitializationSettings initializationSettingsAndroid =
-      //   AndroidInitializationSettings('ic_stat_notifications');
-      //
-      //   const InitializationSettings initializationSettings = InitializationSettings(
-      //     android: initializationSettingsAndroid,
-      //     iOS: DarwinInitializationSettings(),
-      //   );
-      //
-      //   await flutterLocalNotificationsPlugin.initialize(
-      //     initializationSettings,
-      //     onDidReceiveNotificationResponse: (NotificationResponse response) {
-      //       debugPrint('User tapped notification: ${response.payload}');
-      //     },
-      //   );
-      //
-      // // Step 3: Register the channel with Android
-      //   await flutterLocalNotificationsPlugin
-      //       .resolvePlatformSpecificImplementation<
-      //       AndroidFlutterLocalNotificationsPlugin>()
-      //       ?.createNotificationChannel(channel);
-
-      runApp(const MyApp());
+            runApp(const MyApp());
     },
     (error, stack) {
       print('Uncaught error: $error');
