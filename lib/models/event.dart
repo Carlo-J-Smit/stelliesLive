@@ -7,6 +7,7 @@ class Event {
   final String venue;
   final DateTime dateTime;
   final String? imageUrl;
+  final String? iconUrl;
   final String category;
   final bool? recurring;
   final String? dayOfWeek;
@@ -32,6 +33,7 @@ class Event {
     this.recurring,
     this.dayOfWeek,
     this.imageUrl,
+    this.iconUrl,
     this.lat,
     this.lng,
     this.distance,
@@ -64,6 +66,7 @@ class Event {
       busynessLevel: data['busynessLevel'],
       likes: data['likes'],
       dislikes: data['dislikes'],
+      iconUrl: data['iconUrl'],
     );
   }
 

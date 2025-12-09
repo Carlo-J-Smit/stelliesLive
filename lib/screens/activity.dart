@@ -16,6 +16,13 @@ import '../widgets/native_ad_banner.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:io' show Platform;
 import '../widgets/event_markers.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'dart:typed_data';
+import 'dart:ui' as ui;
+import 'package:flutter/services.dart';
+import 'dart:math'; // for min/max
+
+
 
 
 class ActivityScreen extends StatefulWidget {
@@ -64,7 +71,6 @@ class _ActivityScreenState extends State<ActivityScreen> {
   @override
   void initState() {
     super.initState();
-
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final prefs = await SharedPreferences.getInstance();
       _updateEventMarkers();
@@ -89,28 +95,62 @@ class _ActivityScreenState extends State<ActivityScreen> {
     _subscribeToClusterUpdates();
   }
 
-  Set<Marker> generateEventMarkers(List<Event> events) {
-    return events.map((event) {
-      return Marker(
-        markerId: MarkerId(event.id),
-        position: LatLng(event.lat!, event.lng!),
-        onTap: () {
-          // Show the EventCard dialog
-          _showEventDialog(event);
+  Future<Marker> createEventMarker(Event event) async {
+    final icon = await getEventMarkerIcon(event);
 
-          // Optional: move camera to marker
-          _mapController.animateCamera(
-            CameraUpdate.newLatLng(LatLng(event.lat!, event.lng!)),
-          );
+    return Marker(
+      markerId: MarkerId(event.id),
+      position: LatLng(event.lat!, event.lng!),
+      onTap: () {
+        // Show the EventCard dialog
+        print(event.busynessLevel);
+        _showEventDialog(event);
 
-        },
-        icon: getMarkerIcon(event.busynessLevel ?? 'Quiet'),
-        infoWindow: InfoWindow.noText, // no default popup
-      );
-    }).toSet();
+        // Optional: move camera to marker
+        _mapController.animateCamera(
+          CameraUpdate.newLatLng(LatLng(event.lat!, event.lng!)),
+        );
+
+      },
+
+      icon: icon,
+      infoWindow: InfoWindow.noText, // no default popup
+    );
+  }
+
+  Future<Set<Marker>> loadEventMarkers(List<Event> events) async {
+    Set<Marker> markers = {};
+    for (var event in events) {
+      final marker = await createEventMarker(event);
+      markers.add(marker);
+    }
+    return markers;
   }
 
 
+  Future<void> _loadCustomMarker(Event event) async {
+    try {
+      debugPrint("⏳ Loading custom marker for event ${event.id}");
+      final icon = await getEventMarkerIcon(event);
+
+      setState(() {
+        _eventMarkers.removeWhere((m) => m.markerId.value == event.id);
+        _eventMarkers.add(
+          Marker(
+            markerId: MarkerId(event.id),
+            position: LatLng(event.lat!, event.lng!),
+            icon: icon,
+            infoWindow: InfoWindow.noText,
+            onTap: () => _showEventDialog(event),
+          ),
+        );
+      });
+
+      debugPrint("✅ Custom marker applied for event ${event.id}");
+    } catch (e) {
+      debugPrint("❌ Failed to load custom icon for ${event.id}: $e");
+    }
+  }
 
 
 
@@ -126,32 +166,157 @@ class _ActivityScreenState extends State<ActivityScreen> {
         return Event.fromMap(doc.id, doc.data() as Map<String, dynamic>);
       }).toList();
 
+      // Update widget.events
+      widget.events
+        ..clear()
+        ..addAll(freshEvents);
+
+      // Step 1: Show default markers immediately
+      Set<Marker> defaultMarkers = {};
+      for (var event in widget.events) {
+        defaultMarkers.add(
+          Marker(
+            markerId: MarkerId(event.id),
+            position: LatLng(event.lat!, event.lng!),
+            icon: BitmapDescriptor.defaultMarker,
+            infoWindow: InfoWindow.noText,
+            onTap: () => _showEventDialog(event),
+          ),
+        );
+      }
+
       setState(() {
-        widget.events.clear();
-        widget.events.addAll(freshEvents);
-        _eventMarkers = generateEventMarkers(widget.events);
+        _eventMarkers = defaultMarkers;
       });
+
+      // Step 2: Load custom icons asynchronously
+      for (var event in widget.events) {
+        _loadCustomMarker(event);
+      }
     } catch (e) {
       debugPrint("❌ Failed to reload events: $e");
     }
   }
 
 
+  Future<BitmapDescriptor> getEventMarkerIcon(Event event) async {
+    try {
+      final safeTitle = event.title
+          .trim()
+          .replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_')
+          .replaceAll(RegExp(r'_+'), '_');
 
+      final String path = 'event_icon/${event.id}/$safeTitle.png';
+      final Reference ref = FirebaseStorage.instance.ref().child(path);
 
+      debugPrint("🔍 Fetching icon from Firebase Storage: $path");
 
-  BitmapDescriptor getMarkerIcon(String busyness) {
-    switch (busyness) {
-      case 'Quiet':
-        return BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen);
-      case 'Moderate':
-        return BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange);
-      case 'Busy':
-        return BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed);
-      default:
+      final Uint8List? data = await ref.getData();
+      if (data == null) {
+        debugPrint("⚠️ No data for ${event.id}, using default marker");
         return BitmapDescriptor.defaultMarker;
+      }
+
+      // Decode image
+      final codec = await ui.instantiateImageCodec(data);
+      final frame = await codec.getNextFrame();
+      ui.Image originalImage = frame.image;
+
+      // BASE SIZE
+      double baseSize = 40;
+      double scaleFactor = switch (event.busynessLevel) {
+        'Quiet' => 1.0,
+        'Moderate' => 1.25,
+        'Busy' => 1.5,
+        _ => 1.0
+      };
+
+      final int finalSize = (baseSize * scaleFactor).clamp(5, 50).toInt();
+      final radius = finalSize / 2;
+
+      final ui.PictureRecorder recorder = ui.PictureRecorder();
+      final Canvas canvas = Canvas(recorder);
+
+      // ------- GLOW COLOR -------
+      Color glowColor = switch (event.busynessLevel) {
+        'Quiet' => Colors.transparent,
+        'Moderate' => Colors.yellow.withOpacity(0.6),
+        'Busy' => Colors.red.withOpacity(0.7),
+        _ => Colors.transparent
+      };
+
+
+      // ------- CATEGORY BORDER (CUSTOMIZE HERE) -------
+      Color categoryColor = Colors.blue; // MAKE OPTIONAL
+      switch (event.busynessLevel) {
+        case 'Quiet':
+          categoryColor = Colors.green;
+          break;
+        case 'Moderate':
+          categoryColor = Colors.orange;
+          break;
+        case 'Busy':
+          categoryColor = Colors.red;
+          break;
+        default:
+          categoryColor = Colors.white; // fallback if no match
+      }
+      final Paint ringPaint = Paint()
+        ..color = categoryColor
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = finalSize * 0.08
+        ..isAntiAlias = true;
+
+      canvas.drawCircle(Offset(radius, radius), radius * 0.8, ringPaint);
+
+      // ------- INNER CIRCLE CLIP -------
+      final double innerRadius = radius * 0.72;
+
+      final Path clipPath = Path()
+        ..addOval(Rect.fromCircle(center: Offset(radius, radius), radius: innerRadius));
+
+      canvas.clipPath(clipPath);
+
+      final Rect src = Rect.fromLTWH(
+        0,
+        0,
+        originalImage.width.toDouble(),
+        originalImage.height.toDouble(),
+      );
+
+      final double imgSide = innerRadius * 2;
+
+      final Rect dst = Rect.fromLTWH(
+        radius - innerRadius,
+        radius - innerRadius,
+        imgSide,
+        imgSide,
+      );
+
+      final Paint imgPaint = Paint()..isAntiAlias = true;
+      canvas.drawImageRect(originalImage, src, dst, imgPaint);
+
+      // Convert to final image
+      final ui.Image finalImage =
+      await recorder.endRecording().toImage(finalSize, finalSize);
+
+      final ByteData? byteData =
+      await finalImage.toByteData(format: ui.ImageByteFormat.png);
+
+      if (byteData == null) return BitmapDescriptor.defaultMarker;
+
+      return BitmapDescriptor.fromBytes(byteData.buffer.asUint8List());
+    } catch (e) {
+      debugPrint("❌ Error processing marker icon: $e");
     }
+
+    return BitmapDescriptor.defaultMarker;
   }
+
+
+
+
+
 
 
   void _showEventDialog(Event event) async {

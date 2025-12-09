@@ -20,9 +20,6 @@ import '../models/event.dart';
 import '../widgets/event_card.dart';
 import 'dart:math';
 
-
-
-
 class AdminPage extends StatefulWidget {
   const AdminPage({super.key});
 
@@ -35,7 +32,6 @@ class _AdminPageState extends State<AdminPage> {
   final _titleController = TextEditingController();
   final _venueController = TextEditingController();
   final _categoryController = TextEditingController();
-  final _imageUrlController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _priceController = TextEditingController();
   DateTime? _selectedDateTime;
@@ -48,18 +44,18 @@ class _AdminPageState extends State<AdminPage> {
   double? _locationLat;
   double? _locationLng;
   String? _selectedTag;
+
   //Uint8List? _imageWebFileData;
   //File? _imageFile;
   String? _imageUrl;
   bool _imageUploaded = false;
   XFile? _pickedImage;
   Uint8List? _pickedBytes; // only used on Web
-
-
-
-
-
-
+  // Event Icon state
+  XFile? _pickedIcon;
+  Uint8List? _pickedIconBytes;
+  String? _iconUrl;
+  bool _iconUploaded = false;
 
   List<DocumentSnapshot> _searchResults = [];
   DocumentSnapshot? _selectedEvent;
@@ -80,8 +76,8 @@ class _AdminPageState extends State<AdminPage> {
       // User picked a new image
       return kIsWeb
           ? (_pickedBytes != null
-          ? Image.memory(_pickedBytes!, fit: BoxFit.cover)
-          : const SizedBox())
+              ? Image.memory(_pickedBytes!, fit: BoxFit.cover)
+              : const SizedBox())
           : Image.file(File(_pickedImage!.path), fit: BoxFit.cover);
     }
 
@@ -92,7 +88,6 @@ class _AdminPageState extends State<AdminPage> {
 
     return const SizedBox();
   }
-
 
   List<TextSpan> highlightMatch(String source, String query) {
     if (query.isEmpty) return [TextSpan(text: source)];
@@ -172,8 +167,6 @@ class _AdminPageState extends State<AdminPage> {
     }
   }
 
-
-
   @override
   Widget build(BuildContext context) {
     if (user == null) return const Center(child: Text("Login required."));
@@ -201,47 +194,55 @@ class _AdminPageState extends State<AdminPage> {
 
               const SizedBox(height: 16),
               ..._searchResults.map(
-                    (doc) => ListTile(
+                (doc) => ListTile(
                   title: Text.rich(
                     TextSpan(
-                      children: highlightMatch(doc['title'], _searchController.text),
+                      children: highlightMatch(
+                        doc['title'],
+                        _searchController.text,
+                      ),
                     ),
                   ),
                   subtitle: Text.rich(
                     TextSpan(
-                      children: highlightMatch(doc['venue'], _searchController.text),
+                      children: highlightMatch(
+                        doc['venue'],
+                        _searchController.text,
+                      ),
                     ),
                   ),
-                      onTap: () {
-                        // Clear all fields before loading new event
-                        setState(() {
-                          _titleController.clear();
-                          _venueController.clear();
-                          _categoryController.clear();
-                          _descriptionController.clear();
-                          _selectedDateTime = null;
-                          _selectedDayOfWeek = null;
-                          _isRecurring = false;
-                          _priceController.clear();
-                          _locationLat = null;
-                          _locationLng = null;
-                          _locationAddress = null;
-                          _selectedTag = null;
-                          _imageUrl = null;
-                          _pickedBytes = null;
-                          _pickedImage = null;
-                        });
+                  onTap: () {
+                    // Clear all fields before loading new event
+                    setState(() {
+                      _titleController.clear();
+                      _venueController.clear();
+                      _categoryController.clear();
+                      _descriptionController.clear();
+                      _selectedDateTime = null;
+                      _selectedDayOfWeek = null;
+                      _isRecurring = false;
+                      _priceController.clear();
+                      _locationLat = null;
+                      _locationLng = null;
+                      _locationAddress = null;
+                      _selectedTag = null;
+                      _imageUrl = null;
+                      _pickedBytes = null;
+                      _pickedImage = null;
+                      _pickedIcon = null;
+                      _pickedIconBytes= null;
+                      _iconUrl = null;
+                    });
 
-                        // Then load the event
-                        _loadEvent(doc);
-                      },
+                    // Then load the event
+                    _loadEvent(doc);
+                  },
                   trailing: IconButton(
                     icon: const Icon(Icons.delete, color: Colors.red),
                     onPressed: () => _deleteEvent(doc),
                   ),
                 ),
               ),
-
 
               if (_hasMore && !_isLoadingMore)
                 TextButton(
@@ -270,41 +271,54 @@ class _AdminPageState extends State<AdminPage> {
                 decoration: const InputDecoration(labelText: 'Venue'),
               ),
               DropdownButtonFormField<String>(
-                value: _categoryController.text.isNotEmpty ? _categoryController.text : null,
-                onChanged: (val) => setState(() => _categoryController.text = val ?? ''),
-                items: const [
-                  'Live Music',
-                  'Games',
-                  'Karaoke',
-                  'Market',
-                  'Sport',
-                  'Other',
-                ]
-                    .map((cat) => DropdownMenuItem(value: cat, child: Text(cat)))
-                    .toList(),
+                value:
+                    _categoryController.text.isNotEmpty
+                        ? _categoryController.text
+                        : null,
+                onChanged:
+                    (val) =>
+                        setState(() => _categoryController.text = val ?? ''),
+                items:
+                    const [
+                          'Live Music',
+                          'Games',
+                          'Karaoke',
+                          'Market',
+                          'Sport',
+                          'Other',
+                        ]
+                        .map(
+                          (cat) =>
+                              DropdownMenuItem(value: cat, child: Text(cat)),
+                        )
+                        .toList(),
                 decoration: const InputDecoration(labelText: 'Category'),
               ),
 
               DropdownButtonFormField<String>(
                 value: _selectedTag,
                 onChanged: (val) => setState(() => _selectedTag = val),
-                items: const [
-                  'None',
-                  '18+',
-                  'VIP',
-                  'Sold Out',
-                  'Outdoor',
-                  'Limited Seats',
-                ].map(
-                      (tag) => DropdownMenuItem(
-                    value: tag == 'None' ? null : tag,
-                    child: Text(tag),
-                  ),
-                ).toList(),
+                items:
+                    const [
+                          'None',
+                          '18+',
+                          'VIP',
+                          'Sold Out',
+                          'Outdoor',
+                          'Limited Seats',
+                        ]
+                        .map(
+                          (tag) => DropdownMenuItem(
+                            value: tag == 'None' ? null : tag,
+                            child: Text(tag),
+                          ),
+                        )
+                        .toList(),
 
-                decoration: const InputDecoration(labelText: 'Event Tag (optional)'),
+                decoration: const InputDecoration(
+                  labelText: 'Event Tag (optional)',
+                ),
               ),
-
 
               if (_selectedTag != null && _selectedTag!.isNotEmpty) ...[
                 const SizedBox(height: 2),
@@ -341,9 +355,6 @@ class _AdminPageState extends State<AdminPage> {
                 ),
               ],
 
-
-
-
               const SizedBox(height: 10),
               TextField(
                 controller: _descriptionController,
@@ -357,73 +368,162 @@ class _AdminPageState extends State<AdminPage> {
                 ),
               ),
 
-
               // Conditional drag-drop on web vs button on mobile:
               // Conditional image preview / upload button
               const SizedBox(height: 10),
-              InkWell(
-                onTap: () async {
-                  // Clear previous image preview first
-                  setState(() {
-                    _imageUrl = null;
-                    _pickedBytes = null;
-                    _pickedImage = null;
-                    _imageUploaded = false;
-                  });
+              Row(
+                children: [
+                  InkWell(
+                    onTap: () async {
+                      // Clear previous image preview first
+                      setState(() {
+                        _imageUrl = null;
+                        _pickedBytes = null;
+                        _pickedImage = null;
+                        _imageUploaded = false;
+                      });
 
-                  // Pick a new image
-                  await pickImage(); // Make sure pickImage updates _imageUrl
+                      // Pick a new image
+                      await pickImage(); // Make sure pickImage updates _imageUrl
 
-                  // Update uploaded state if image exists
-                  if (_imageUrl != null && _imageUrl!.isNotEmpty) {
-                    setState(() {
-                      _imageUploaded = true;
-                    });
-                  }
-                },
-                borderRadius: BorderRadius.circular(8),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[200],
-                    border: Border.all(color: Colors.grey),
+                      // Update uploaded state if image exists
+                      if (_imageUrl != null && _imageUrl!.isNotEmpty) {
+                        setState(() {
+                          _imageUploaded = true;
+                        });
+                      }
+                    },
                     borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.upload_file, color: AppColors.primaryRed),
-                      const SizedBox(width: 8),
-                      Text(
-                        _imageUploaded ? 'Uploaded' : 'Upload / Update Image',
-                        style: const TextStyle(
-                          color: AppColors.primaryRed,
-                          fontWeight: FontWeight.bold,
-                        ),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
                       ),
-                      if (_pickedImage != null || (_imageUrl != null && _imageUrl!.isNotEmpty))
-                        Padding(
-                          padding: const EdgeInsets.only(left: 12),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: SizedBox(width: 80, height: 80, child: _buildImagePreview()),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[200],
+                        border: Border.all(color: Colors.grey),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.upload_file,
+                            color: AppColors.primaryRed,
                           ),
-                        ),
-
-
-
-                    ],
+                          const SizedBox(width: 8),
+                          Text(
+                            _imageUploaded
+                                ? 'Uploaded'
+                                : 'Upload / Update Image',
+                            style: const TextStyle(
+                              color: AppColors.primaryRed,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          if (_pickedImage != null ||
+                              (_imageUrl != null && _imageUrl!.isNotEmpty))
+                            Padding(
+                              padding: const EdgeInsets.only(left: 12),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: SizedBox(
+                                  width: 80,
+                                  height: 80,
+                                  child: _buildImagePreview(),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
                   ),
-                ),
+                  const SizedBox(width: 10),
+                  InkWell(
+                    onTap: () async {
+                      setState(() {
+                        _pickedIcon = null;
+                        _pickedIconBytes = null;
+                        _iconUrl = null;
+                        _iconUploaded = false;
+                      });
+
+                      await pickIcon();
+
+                      if (_pickedIcon != null || _pickedIconBytes != null) {
+                        setState(() {
+                          _iconUploaded = true;
+                        });
+                      }
+                    },
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[200],
+                        border: Border.all(color: Colors.grey),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.tag, color: AppColors.primaryRed),
+                          const SizedBox(width: 8),
+                          Text(
+                            _iconUploaded ? 'Uploaded' : 'Upload / Update Icon',
+                            style: const TextStyle(
+                              color: AppColors.primaryRed,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          if (_pickedIcon != null ||
+                              (_iconUrl != null && _iconUrl!.isNotEmpty))
+                            Padding(
+                              padding: const EdgeInsets.only(left: 12),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: SizedBox(
+                                  width: 50,
+                                  height: 50,
+                                  child:
+                                      kIsWeb
+                                          ? (_pickedIconBytes != null
+                                              ? Image.memory(
+                                                _pickedIconBytes!,
+                                                fit: BoxFit.cover,
+                                              )
+                                              : Image.network(
+                                                _iconUrl!,
+                                                fit: BoxFit.cover,
+                                              ))
+                                          : (_pickedIcon != null
+                                              ? Image.file(
+                                                File(_pickedIcon!.path),
+                                                fit: BoxFit.cover,
+                                              )
+                                              : Image.network(
+                                                _iconUrl!,
+                                                fit: BoxFit.cover,
+                                              )),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
-
-
-
 
               const SizedBox(height: 10),
               TextFormField(
                 controller: _priceController,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
                 inputFormatters: [
                   FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
                 ],
@@ -441,9 +541,6 @@ class _AdminPageState extends State<AdminPage> {
                   return null;
                 },
               ),
-
-
-
 
               const SizedBox(height: 10),
               SwitchListTile(
@@ -515,7 +612,6 @@ class _AdminPageState extends State<AdminPage> {
                 onPressed: _openLocationPicker,
               ),
 
-
               const SizedBox(height: 20),
               if (_error != null)
                 Text(_error!, style: const TextStyle(color: Colors.red)),
@@ -584,6 +680,66 @@ class _AdminPageState extends State<AdminPage> {
   //   }
   // }
 
+  Future<void> pickIcon() async {
+    final ImagePicker picker = ImagePicker();
+    final XFile? icon = await picker.pickImage(source: ImageSource.gallery);
+
+    if (icon == null) return;
+
+    setState(() {
+      _pickedIcon = icon;
+    });
+
+    if (kIsWeb) {
+      _pickedIconBytes = await icon.readAsBytes();
+    }
+  }
+
+  Future<void> uploadEventIcon(String eventId, String eventTitle) async {
+    if (_pickedIcon == null && _pickedIconBytes == null) return;
+
+    final safeTitle = eventTitle
+        .trim()
+        .replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_')
+        .replaceAll(RegExp(r'_+'), '_');
+
+    final String path = 'event_icon/$eventId/$safeTitle.png';
+    final Reference ref = FirebaseStorage.instance.ref().child(path);
+
+    if (kIsWeb) {
+      await ref.putData(
+        _pickedIconBytes!,
+        SettableMetadata(contentType: 'image/png'),
+      );
+    } else {
+      await ref.putFile(File(_pickedIcon!.path));
+    }
+
+    _iconUrl = await ref.getDownloadURL();
+  }
+
+  Future<void> deleteEventIcon(String eventId, String eventTitle) async {
+    final safeTitle = eventTitle
+        .trim()
+        .replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_')
+        .replaceAll(RegExp(r'_+'), '_');
+
+    final String path = 'event_icon/$eventId/$safeTitle.png';
+    final Reference ref = FirebaseStorage.instance.ref().child(path);
+
+    try {
+      await ref.delete();
+      setState(() {
+        _pickedIcon = null;
+        _pickedIconBytes = null;
+        _iconUrl = null;
+        _iconUploaded = false;
+      });
+    } catch (e) {
+      debugPrint('Error deleting icon: $e');
+    }
+  }
+
   Future<void> pickImage() async {
     final ImagePicker picker = ImagePicker();
     final XFile? image = await picker.pickImage(source: ImageSource.gallery);
@@ -604,16 +760,21 @@ class _AdminPageState extends State<AdminPage> {
     // Replace spaces and slashes with underscores
     final safeTitle = eventTitle
         .trim()
-        .replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_') // replace anything not alphanumeric with _
-        .replaceAll(RegExp(r'_+'), '_');           // collapse multiple _ into single _
-
+        .replaceAll(
+          RegExp(r'[^a-zA-Z0-9]'),
+          '_',
+        ) // replace anything not alphanumeric with _
+        .replaceAll(RegExp(r'_+'), '_'); // collapse multiple _ into single _
 
     // Upload path
     final String path = 'event_pics/$eventId/$safeTitle.png';
     final Reference ref = FirebaseStorage.instance.ref().child(path);
 
     if (kIsWeb) {
-      await ref.putData(_pickedBytes!, SettableMetadata(contentType: 'image/png'));
+      await ref.putData(
+        _pickedBytes!,
+        SettableMetadata(contentType: 'image/png'),
+      );
     } else {
       await ref.putFile(File(_pickedImage!.path));
     }
@@ -621,12 +782,6 @@ class _AdminPageState extends State<AdminPage> {
     // Store the exact URL in Firestore for deletion later
     _imageUrl = await ref.getDownloadURL();
   }
-
-
-
-
-
-
 
   Future<void> _openLocationPicker() async {
     final LatLng? picked = await showDialog(
@@ -640,17 +795,20 @@ class _AdminPageState extends State<AdminPage> {
 
       try {
         final placemarks = await placemarkFromCoordinates(
-            picked.latitude, picked.longitude);
+          picked.latitude,
+          picked.longitude,
+        );
         if (placemarks.isNotEmpty) {
           final place = placemarks.first;
           setState(() {
             _locationAddress =
-            '${place.name}, ${place.locality}, ${place.administrativeArea}';
+                '${place.name}, ${place.locality}, ${place.administrativeArea}';
           });
         }
       } catch (e) {
         setState(() {
-          _locationAddress = 'Lat: ${picked.latitude}, Lng: ${picked.longitude}';
+          _locationAddress =
+              'Lat: ${picked.latitude}, Lng: ${picked.longitude}';
         });
       }
     }
@@ -666,35 +824,38 @@ class _AdminPageState extends State<AdminPage> {
       _hasMore = true;
     });
 
-    final titleQuery = FirebaseFirestore.instance
-        .collection('events')
-        .where('titleLower', isGreaterThanOrEqualTo: query)
-        .where('titleLower', isLessThanOrEqualTo: query + '\uf8ff')
-        .limit(10)
-        .get();
+    final titleQuery =
+        FirebaseFirestore.instance
+            .collection('events')
+            .where('titleLower', isGreaterThanOrEqualTo: query)
+            .where('titleLower', isLessThanOrEqualTo: query + '\uf8ff')
+            .limit(10)
+            .get();
 
-    final venueQuery = FirebaseFirestore.instance
-        .collection('events')
-        .where('venueLower', isGreaterThanOrEqualTo: query)
-        .where('venueLower', isLessThanOrEqualTo: query + '\uf8ff')
-        .limit(10)
-        .get();
+    final venueQuery =
+        FirebaseFirestore.instance
+            .collection('events')
+            .where('venueLower', isGreaterThanOrEqualTo: query)
+            .where('venueLower', isLessThanOrEqualTo: query + '\uf8ff')
+            .limit(10)
+            .get();
 
     final results = await Future.wait([titleQuery, venueQuery]);
 
-    final combined = <DocumentSnapshot>{}
-      ..addAll(results[0].docs)
-      ..addAll(results[1].docs);
+    final combined =
+        <DocumentSnapshot>{}
+          ..addAll(results[0].docs)
+          ..addAll(results[1].docs);
 
-    final sortedResults = combined.toList()
-      ..sort((a, b) => (a['title'] ?? '').compareTo(b['title'] ?? ''));
+    final sortedResults =
+        combined.toList()
+          ..sort((a, b) => (a['title'] ?? '').compareTo(b['title'] ?? ''));
 
     setState(() {
       _searchResults = sortedResults;
       _hasMore = false; // pagination for now skipped
     });
   }
-
 
   void _loadMoreResults() async {
     if (!_hasMore || _isLoadingMore) return;
@@ -734,27 +895,23 @@ class _AdminPageState extends State<AdminPage> {
       _categoryController.text = doc['category'] ?? '';
       _descriptionController.text = doc['description'] ?? '';
       _imageUrl = doc['imageUrl'];
+      _iconUrl = doc['iconUrl'];
       _priceController.text = (doc['price'] as num?)?.toStringAsFixed(2) ?? '';
       _selectedTag = doc['tag'];
 
-
-
-
-
       // ✅ Check if "location" exists before using it
       if (doc.data() is Map && (doc.data() as Map).containsKey('location')) {
-      final location = doc['location'];
-      _locationLat = location['lat'];
-      _locationLng = location['lng'];
-      _locationAddress = location['address'];
+        final location = doc['location'];
+        _locationLat = location['lat'];
+        _locationLng = location['lng'];
+        _locationAddress = location['address'];
       } else {
-      _locationLat = null;
-      _locationLng = null;
-      _locationAddress = null;
+        _locationLat = null;
+        _locationLng = null;
+        _locationAddress = null;
       }
 
-
-  final isRecurring = doc['recurring'] == true;
+      final isRecurring = doc['recurring'] == true;
       _isRecurring = isRecurring;
 
       if (isRecurring) {
@@ -762,27 +919,25 @@ class _AdminPageState extends State<AdminPage> {
         //_selectedDateTime = null;
       } else {
         _selectedDayOfWeek = null;
-        
       }
       _selectedDateTime =
-            doc['dateTime'] != null
-                ? (doc['dateTime'] as Timestamp).toDate()
-                : null;
+          doc['dateTime'] != null
+              ? (doc['dateTime'] as Timestamp).toDate()
+              : null;
     });
   }
-
-
-
-
 
   Future<void> _submitEvent() async {
     setState(() => _isSubmitting = true);
 
     try {
       // Validation
-      if (!_isRecurring && _selectedDateTime == null) throw Exception('Please select a date.');
-      if (_isRecurring && _selectedDayOfWeek == null) throw Exception('Please select a day of the week.');
-      if (_isRecurring && _selectedDateTime == null) throw Exception('Please select a time.');
+      if (!_isRecurring && _selectedDateTime == null)
+        throw Exception('Please select a date.');
+      if (_isRecurring && _selectedDayOfWeek == null)
+        throw Exception('Please select a day of the week.');
+      if (_isRecurring && _selectedDateTime == null)
+        throw Exception('Please select a time.');
 
       // Prepare data for preview
       final previewData = {
@@ -795,14 +950,18 @@ class _AdminPageState extends State<AdminPage> {
         'recurring': _isRecurring,
         'price': double.tryParse(_priceController.text.trim()) ?? 0.0,
         'dayOfWeek': _selectedDayOfWeek,
-        'dateTime': _selectedDateTime != null ? Timestamp.fromDate(_selectedDateTime!) : null,
-        'location': _locationLat != null && _locationLng != null
-            ? {
-          'lat': _locationLat,
-          'lng': _locationLng,
-          'address': _locationAddress ?? '',
-        }
-            : null,
+        'dateTime':
+            _selectedDateTime != null
+                ? Timestamp.fromDate(_selectedDateTime!)
+                : null,
+        'location':
+            _locationLat != null && _locationLng != null
+                ? {
+                  'lat': _locationLat,
+                  'lng': _locationLng,
+                  'address': _locationAddress ?? '',
+                }
+                : null,
         'tag': _selectedTag,
       };
 
@@ -846,19 +1005,22 @@ class _AdminPageState extends State<AdminPage> {
         },
       );
 
-
-
       if (confirmed != true) return; // user cancelled
 
       // Prepare Firestore data
-      final data = Map<String, dynamic>.from(previewData)..remove('imageUrl'); // remove temp preview image
+      final data = Map<String, dynamic>.from(previewData)
+        ..remove('imageUrl'); // remove temp preview image
 
       // Create or update event
       DocumentReference eventRef;
       if (_selectedEvent == null) {
-        eventRef = await FirebaseFirestore.instance.collection('events').add(data);
+        eventRef = await FirebaseFirestore.instance
+            .collection('events')
+            .add(data);
       } else {
-        eventRef = FirebaseFirestore.instance.collection('events').doc(_selectedEvent!.id);
+        eventRef = FirebaseFirestore.instance
+            .collection('events')
+            .doc(_selectedEvent!.id);
         await eventRef.update(data);
       }
 
@@ -869,9 +1031,19 @@ class _AdminPageState extends State<AdminPage> {
         await eventRef.update({'imageUrl': _imageUrl});
       }
 
+      // After uploading main event image
+      if (_pickedIcon != null || _pickedIconBytes != null) {
+        await uploadEventIcon(eventRef.id, _titleController.text.trim());
+        await eventRef.update({'iconUrl': _iconUrl});
+      }
+
       // Success message
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(_selectedEvent == null ? 'Event created.' : 'Event updated.')),
+        SnackBar(
+          content: Text(
+            _selectedEvent == null ? 'Event created.' : 'Event updated.',
+          ),
+        ),
       );
 
       // Reset state
@@ -894,6 +1066,9 @@ class _AdminPageState extends State<AdminPage> {
         _imageUrl = null;
         _pickedBytes = null;
         _pickedImage = null;
+        _pickedIcon = null;
+        _pickedIconBytes= null;
+        _iconUrl = null;
       });
     } catch (e) {
       setState(() => _error = e.toString());
@@ -901,7 +1076,6 @@ class _AdminPageState extends State<AdminPage> {
       setState(() => _isSubmitting = false);
     }
   }
-
 
   Future<void> _pickDateTime() async {
     final now = DateTime.now();
@@ -949,12 +1123,6 @@ class _AdminPageState extends State<AdminPage> {
       }
     }
   }
-
-
-
-
-
-
 
   void _deleteEvent(DocumentSnapshot doc) async {
     final confirm = await showDialog<bool>(
@@ -1015,7 +1183,10 @@ class _MapPickerDialogState extends State<_MapPickerDialog> {
         }
 
         final position = snapshot.data!;
-        final LatLng initialPosition = LatLng(position.latitude, position.longitude);
+        final LatLng initialPosition = LatLng(
+          position.latitude,
+          position.longitude,
+        );
 
         return AlertDialog(
           title: const Text("Pick Location"),
@@ -1030,14 +1201,15 @@ class _MapPickerDialogState extends State<_MapPickerDialog> {
               onTap: (LatLng pos) {
                 setState(() => _pickedLocation = pos);
               },
-              markers: _pickedLocation != null
-                  ? {
-                Marker(
-                  markerId: const MarkerId('picked'),
-                  position: _pickedLocation!,
-                ),
-              }
-                  : {},
+              markers:
+                  _pickedLocation != null
+                      ? {
+                        Marker(
+                          markerId: const MarkerId('picked'),
+                          position: _pickedLocation!,
+                        ),
+                      }
+                      : {},
             ),
           ),
           actions: [
@@ -1059,4 +1231,3 @@ class _MapPickerDialogState extends State<_MapPickerDialog> {
     );
   }
 }
-
