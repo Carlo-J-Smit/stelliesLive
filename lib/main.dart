@@ -44,15 +44,17 @@ void main() async {
         options: DefaultFirebaseOptions.currentPlatform,
       );
 
-      await MessagingService().init();
+      //await MessagingService().init();
 
 
-      const useEmulator = true; // <-- toggle ON/OFF
+      const useEmulator = false; // <-- toggle ON/OFF
+
+      final emulatorHost = kIsWeb ? 'localhost' : '10.0.2.2';
 
       if (useEmulator) {
-        FirebaseFirestore.instance.useFirestoreEmulator('localhost', 8080);
-        FirebaseAuth.instance.useAuthEmulator('localhost', 9099);
-        FirebaseStorage.instance.useStorageEmulator('localhost', 9199);
+        FirebaseFirestore.instance.useFirestoreEmulator(emulatorHost, 8080);
+        FirebaseAuth.instance.useAuthEmulator(emulatorHost, 9099);
+        FirebaseStorage.instance.useStorageEmulator(emulatorHost, 9199);
       }
 
       log('🔥 Dart main started');

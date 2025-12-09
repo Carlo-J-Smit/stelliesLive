@@ -223,7 +223,7 @@ class _ActivityScreenState extends State<ActivityScreen> {
       ui.Image originalImage = frame.image;
 
       // BASE SIZE
-      double baseSize = 40;
+      double baseSize = 80;
       double scaleFactor = switch (event.busynessLevel) {
         'Quiet' => 1.0,
         'Moderate' => 1.25,
@@ -231,7 +231,7 @@ class _ActivityScreenState extends State<ActivityScreen> {
         _ => 1.0
       };
 
-      final int finalSize = (baseSize * scaleFactor).clamp(5, 50).toInt();
+      final int finalSize = (baseSize * scaleFactor).clamp(5, 150).toInt();
       final radius = finalSize / 2;
 
       final ui.PictureRecorder recorder = ui.PictureRecorder();

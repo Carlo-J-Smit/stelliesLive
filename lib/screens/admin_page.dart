@@ -371,7 +371,9 @@ class _AdminPageState extends State<AdminPage> {
               // Conditional drag-drop on web vs button on mobile:
               // Conditional image preview / upload button
               const SizedBox(height: 10),
-              Row(
+              Column(
+                mainAxisAlignment: MainAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   InkWell(
                     onTap: () async {
@@ -415,7 +417,7 @@ class _AdminPageState extends State<AdminPage> {
                           Text(
                             _imageUploaded
                                 ? 'Uploaded'
-                                : 'Upload / Update Image',
+                                : 'Upload Image',
                             style: const TextStyle(
                               color: AppColors.primaryRed,
                               fontWeight: FontWeight.bold,
@@ -438,7 +440,7 @@ class _AdminPageState extends State<AdminPage> {
                       ),
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(height: 10),
                   InkWell(
                     onTap: () async {
                       setState(() {
@@ -473,7 +475,7 @@ class _AdminPageState extends State<AdminPage> {
                           const Icon(Icons.tag, color: AppColors.primaryRed),
                           const SizedBox(width: 8),
                           Text(
-                            _iconUploaded ? 'Uploaded' : 'Upload / Update Icon',
+                            _iconUploaded ? 'Uploaded' : 'Upload Image',
                             style: const TextStyle(
                               color: AppColors.primaryRed,
                               fontWeight: FontWeight.bold,
