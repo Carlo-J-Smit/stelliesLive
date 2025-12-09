@@ -16,7 +16,9 @@ class Event {
   final int? popularity; // 1 = Quiet, 2 = Moderate, 3 = Busy
   final double? price;
   final String? tag;
-
+  final String? busynessLevel;
+  final int? likes;
+  final int? dislikes;
 
 
 
@@ -36,6 +38,9 @@ class Event {
     this.popularity,
     this.price,
     this.tag,
+    this.busynessLevel,
+    this.likes,
+    this.dislikes,
   });
 
   factory Event.fromMap(String id, Map<String, dynamic> data) {
@@ -56,6 +61,9 @@ class Event {
       popularity: data['popularity'],
       price: (data['price'] as num?)?.toDouble(),
       tag: data['tag'],
+      busynessLevel: data['busynessLevel'],
+      likes: data['likes'],
+      dislikes: data['dislikes'],
     );
   }
 

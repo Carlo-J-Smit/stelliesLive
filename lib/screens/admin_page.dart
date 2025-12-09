@@ -18,6 +18,8 @@ import 'dart:io' show File; // only for mobile
 //import 'dart:html' as html; // only used on web
 import '../models/event.dart';
 import '../widgets/event_card.dart';
+import 'dart:math';
+
 
 
 
@@ -809,25 +811,42 @@ class _AdminPageState extends State<AdminPage> {
         context: context,
         builder: (context) {
           final screenWidth = MediaQuery.of(context).size.width;
+          final minCardWidth = 300.0; // minimum width on small screens
+          final maxCardWidth = screenWidth * 0.9;
+
           return AlertDialog(
             title: const Text('Preview Event'),
-            content: SingleChildScrollView(
-              child: SizedBox(
-                width: screenWidth * 0.7,
-                child: EventCard(
-                  event: Event.fromMap('preview', previewData),
-                  pickedBytes: _pickedBytes, // use picked image for preview
-                  pickedFile: _pickedImage,
+            content: ConstrainedBox(
+              constraints: BoxConstraints(
+                minWidth: minCardWidth,
+                maxWidth: max(maxCardWidth, minCardWidth),
+              ),
+              child: SingleChildScrollView(
+                child: SizedBox(
+                  width: min(screenWidth * 0.7, maxCardWidth),
+                  child: EventCard(
+                    event: Event.fromMap('preview', previewData),
+                    pickedBytes: _pickedBytes,
+                    pickedFile: _pickedImage,
+                  ),
                 ),
               ),
             ),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-              ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('Confirm')),
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Confirm'),
+              ),
             ],
           );
         },
       );
+
+
 
       if (confirmed != true) return; // user cancelled
 

@@ -3,6 +3,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:stellieslive/constants/colors.dart';
 import '../models/event.dart';
 import '../widgets/event_card.dart';
 import '../widgets/nav_bar.dart';
@@ -14,6 +15,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../widgets/native_ad_banner.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:io' show Platform;
+import '../screens/events_screen.dart';
 
 
 class ActivityScreen extends StatefulWidget {
@@ -42,6 +44,8 @@ class _ActivityScreenState extends State<ActivityScreen> {
   bool _mapReady = false;
   String? _darkStyle;
   double _bottomMapPadding = 0;
+  Set<Marker> _eventMarkers = {};
+
 
   Future<void> _initActivity() async {
     final pos = await _handleLocationPermission();
@@ -62,6 +66,7 @@ class _ActivityScreenState extends State<ActivityScreen> {
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final prefs = await SharedPreferences.getInstance();
+      _updateEventMarkers();
       _isDarkMap = prefs.getBool('isDarkMap') ?? false;
 
       // If dark, preload map style
@@ -82,6 +87,174 @@ class _ActivityScreenState extends State<ActivityScreen> {
 
     _subscribeToClusterUpdates();
   }
+
+  Set<Marker> generateEventMarkers(List<Event> events) {
+    return events.map((event) {
+      return Marker(
+        markerId: MarkerId(event.id),
+        position: LatLng(event.lat!, event.lng!),
+        onTap: () {
+          // Show the EventCard dialog
+          _showEventDialog(event);
+
+          // Optional: move camera to marker
+          _mapController.animateCamera(
+            CameraUpdate.newLatLng(LatLng(event.lat!, event.lng!)),
+          );
+        },
+        icon: getMarkerIcon(event.busynessLevel ?? 'Quiet'),
+        infoWindow: InfoWindow.noText, // no default popup
+      );
+    }).toSet();
+  }
+
+
+
+
+
+
+  void _updateEventMarkers() {
+    setState(() {
+      _eventMarkers = generateEventMarkers(widget.events);
+    });
+  }
+
+
+
+  BitmapDescriptor getMarkerIcon(String busyness) {
+    switch (busyness) {
+      case 'Quiet':
+        return BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen);
+      case 'Moderate':
+        return BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange);
+      case 'Busy':
+        return BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed);
+      default:
+        return BitmapDescriptor.defaultMarker;
+    }
+  }
+
+
+  void _showEventDialog(Event event) {
+    final isDark = _isDarkMap;
+
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor:
+        isDark ? AppColors.textLight.withOpacity(0.6) : AppColors.accent.withOpacity(0.6),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        contentPadding: const EdgeInsets.all(16),
+        content: ConstrainedBox(
+          constraints: BoxConstraints(
+            minWidth: 600, //minimum size of event card
+            maxWidth: MediaQuery.of(context).size.width * 0.9,
+          ),
+          child: SingleChildScrollView(
+            child: SizedBox(
+              width: double.infinity, // <-- fill max width
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  EventCard(event: event),
+                  const SizedBox(height: 16),
+                  // Busyness buttons
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: ['Quiet', 'Moderate', 'Busy'].map((level) {
+                      Color bgColor;
+                      switch (level) {
+                        case 'Quiet':
+                          bgColor = Colors.green;
+                          break;
+                        case 'Moderate':
+                          bgColor = Colors.orange;
+                          break;
+                        case 'Busy':
+                          bgColor = Colors.red;
+                          break;
+                        default:
+                          bgColor = Colors.grey;
+                      }
+
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 6),
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: bgColor,
+                            foregroundColor: Colors.white,
+                          ),
+                          onPressed: () async {
+                            Navigator.of(context).pop();
+                            await _submitBusynessFeedback(event, level);
+                          },
+                          child: Text(level),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 12),
+                  // Thumbs up / down
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.thumb_up, color: Colors.green),
+                        onPressed: () async {
+                          Navigator.of(context).pop();
+                          await _submitLikeDislike(event, liked: true);
+                        },
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.thumb_down, color: Colors.red),
+                        onPressed: () async {
+                          Navigator.of(context).pop();
+                          await _submitLikeDislike(event, liked: false);
+                        },
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+
+
+  Future<void> _submitBusynessFeedback(Event event, String level) async {
+    final pos = await Geolocator.getCurrentPosition();
+
+    // Example Firestore write
+    await FirebaseFirestore.instance.collection('event_feedback').add({
+      'eventId': event.id,
+      'timestamp': Timestamp.now(),
+      'busyness': level,
+      'userId': FirebaseAuth.instance.currentUser?.uid,
+      'lat': pos.latitude,
+      'lng': pos.longitude,
+    });
+
+    debugPrint("Busyness feedback submitted: ${event.title} -> $level");
+  }
+
+  Future<void> _submitLikeDislike(Event event, {required bool liked}) async {
+    await FirebaseFirestore.instance.collection('event_feedback').add({
+      'eventId': event.id,
+      'timestamp': Timestamp.now(),
+      'userId': FirebaseAuth.instance.currentUser?.uid,
+      'liked': liked,
+    });
+
+    debugPrint("${liked ? "Liked" : "Disliked"} event: ${event.title}");
+  }
+
+
+
+
 
   Future<void> _sendFeedbackNotification(Event event) async {
     return;
@@ -482,6 +655,7 @@ class _ActivityScreenState extends State<ActivityScreen> {
   void _subscribeToClusterUpdates() {
     FirebaseFirestore.instance.collection('merged_clusters').snapshots().listen(
       (snapshot) {
+        _updateEventMarkers();
         final Set<Circle> circles = {};
 
         for (final doc in snapshot.docs) {
@@ -616,7 +790,7 @@ class _ActivityScreenState extends State<ActivityScreen> {
                             ),
                             zoom: 14,
                           ),
-                          markers: {},
+                          markers: _eventMarkers,
                           circles: _showHeatmap ? _popularityCircles : {},
                           myLocationEnabled: true,
                           myLocationButtonEnabled: false,

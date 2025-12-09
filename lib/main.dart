@@ -47,7 +47,7 @@ void main() async {
       await MessagingService().init();
 
 
-      const useEmulator = false; // <-- toggle ON/OFF
+      const useEmulator = true; // <-- toggle ON/OFF
 
       if (useEmulator) {
         FirebaseFirestore.instance.useFirestoreEmulator('localhost', 8080);
