@@ -15,7 +15,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../widgets/native_ad_banner.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:io' show Platform;
-import '../screens/events_screen.dart';
+import '../widgets/event_markers.dart';
 
 
 class ActivityScreen extends StatefulWidget {
@@ -45,6 +45,7 @@ class _ActivityScreenState extends State<ActivityScreen> {
   String? _darkStyle;
   double _bottomMapPadding = 0;
   Set<Marker> _eventMarkers = {};
+  DateTime _lastReload = DateTime.fromMillisecondsSinceEpoch(0);
 
 
   Future<void> _initActivity() async {
@@ -101,6 +102,7 @@ class _ActivityScreenState extends State<ActivityScreen> {
           _mapController.animateCamera(
             CameraUpdate.newLatLng(LatLng(event.lat!, event.lng!)),
           );
+
         },
         icon: getMarkerIcon(event.busynessLevel ?? 'Quiet'),
         infoWindow: InfoWindow.noText, // no default popup
@@ -113,11 +115,28 @@ class _ActivityScreenState extends State<ActivityScreen> {
 
 
 
-  void _updateEventMarkers() {
-    setState(() {
-      _eventMarkers = generateEventMarkers(widget.events);
-    });
+  Future<void> _updateEventMarkers() async {
+    try {
+      if (DateTime.now().difference(_lastReload).inSeconds < 5) return;
+      _lastReload = DateTime.now();
+
+      final snapshot = await FirebaseFirestore.instance.collection('events').get();
+
+      final List<Event> freshEvents = snapshot.docs.map((doc) {
+        return Event.fromMap(doc.id, doc.data() as Map<String, dynamic>);
+      }).toList();
+
+      setState(() {
+        widget.events.clear();
+        widget.events.addAll(freshEvents);
+        _eventMarkers = generateEventMarkers(widget.events);
+      });
+    } catch (e) {
+      debugPrint("❌ Failed to reload events: $e");
+    }
   }
+
+
 
 
 
@@ -135,125 +154,15 @@ class _ActivityScreenState extends State<ActivityScreen> {
   }
 
 
-  void _showEventDialog(Event event) {
-    final isDark = _isDarkMap;
-
-    showDialog(
+  void _showEventDialog(Event event) async {
+    await showDialog(
       context: context,
-      builder: (_) => AlertDialog(
-        backgroundColor:
-        isDark ? AppColors.textLight.withOpacity(0.6) : AppColors.accent.withOpacity(0.6),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        contentPadding: const EdgeInsets.all(16),
-        content: ConstrainedBox(
-          constraints: BoxConstraints(
-            minWidth: 600, //minimum size of event card
-            maxWidth: MediaQuery.of(context).size.width * 0.9,
-          ),
-          child: SingleChildScrollView(
-            child: SizedBox(
-              width: double.infinity, // <-- fill max width
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  EventCard(event: event),
-                  const SizedBox(height: 16),
-                  // Busyness buttons
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: ['Quiet', 'Moderate', 'Busy'].map((level) {
-                      Color bgColor;
-                      switch (level) {
-                        case 'Quiet':
-                          bgColor = Colors.green;
-                          break;
-                        case 'Moderate':
-                          bgColor = Colors.orange;
-                          break;
-                        case 'Busy':
-                          bgColor = Colors.red;
-                          break;
-                        default:
-                          bgColor = Colors.grey;
-                      }
-
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 6),
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: bgColor,
-                            foregroundColor: Colors.white,
-                          ),
-                          onPressed: () async {
-                            Navigator.of(context).pop();
-                            await _submitBusynessFeedback(event, level);
-                          },
-                          child: Text(level),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                  const SizedBox(height: 12),
-                  // Thumbs up / down
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.thumb_up, color: Colors.green),
-                        onPressed: () async {
-                          Navigator.of(context).pop();
-                          await _submitLikeDislike(event, liked: true);
-                        },
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.thumb_down, color: Colors.red),
-                        onPressed: () async {
-                          Navigator.of(context).pop();
-                          await _submitLikeDislike(event, liked: false);
-                        },
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
+      builder: (_) => EventFeedbackDialog(event: event, isDarkMode: _isDarkMap),
     );
+
+    // Reload events from Firebase after the dialog is closed
+    await _updateEventMarkers();
   }
-
-
-
-  Future<void> _submitBusynessFeedback(Event event, String level) async {
-    final pos = await Geolocator.getCurrentPosition();
-
-    // Example Firestore write
-    await FirebaseFirestore.instance.collection('event_feedback').add({
-      'eventId': event.id,
-      'timestamp': Timestamp.now(),
-      'busyness': level,
-      'userId': FirebaseAuth.instance.currentUser?.uid,
-      'lat': pos.latitude,
-      'lng': pos.longitude,
-    });
-
-    debugPrint("Busyness feedback submitted: ${event.title} -> $level");
-  }
-
-  Future<void> _submitLikeDislike(Event event, {required bool liked}) async {
-    await FirebaseFirestore.instance.collection('event_feedback').add({
-      'eventId': event.id,
-      'timestamp': Timestamp.now(),
-      'userId': FirebaseAuth.instance.currentUser?.uid,
-      'liked': liked,
-    });
-
-    debugPrint("${liked ? "Liked" : "Disliked"} event: ${event.title}");
-  }
-
-
-
 
 
   Future<void> _sendFeedbackNotification(Event event) async {
