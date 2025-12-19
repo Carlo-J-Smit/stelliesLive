@@ -12,6 +12,12 @@ const storageBucket = getStorage().bucket();
 
 
 const GROUP_RADIUS_METERS = 100;
+const LOCATION_CONFIDENCE_SATURATION = 50;
+
+const busynessToScore = (b: string) =>
+  b === "Quiet" ? 0 : b === "Moderate" ? 1 : 2;
+  
+
 
 function distance(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371000;
@@ -25,11 +31,28 @@ function distance(lat1: number, lon1: number, lat2: number, lon2: number): numbe
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-function inferLevel(count: number): string {
-  if (count < 3) return "Quiet";
-  if (count < 6) return "Moderate";
-  return "Busy";
+function bayesianBusyness(scores: number[]): number {
+  let q = 0, m = 0, b = 0;
+
+  for (const s of scores) {
+    if (s === 0) q++;
+    else if (s === 1) m++;
+    else b++;
+  }
+
+  // Prior: [Quiet, Moderate, Busy]
+  const pq = 0.1;  // minimal smoothing, barely affects real votes
+  const pm = 0.05; // very low, just to avoid division by zero
+  const pb = 0.1;  // minimal smoothing
+
+  return (
+    0 * (q + pq) +
+    1 * (m + pm) +
+    2 * (b + pb)
+  ) / ((q + pq) + (m + pm) + (b + pb));
 }
+
+
 
 export const handleLocationLog = onDocumentCreated(
   {
@@ -39,114 +62,240 @@ export const handleLocationLog = onDocumentCreated(
     cpu: 1,
   },
   async (event) => {
+  console.log("🚀 Busyness job started");
 
-    const now = Date.now();
-    const cutoff = Timestamp.fromMillis(now - 30 * 60 * 1000);
+  const now = Date.now();
+  const cutoff = Timestamp.fromMillis(now - 30 * 60 * 1000);
 
-    // 🔹 Step 1: Fetch last 30 mins of logs
-    const logSnap = await db.collection("location_logs")
-      .where("timestamp", ">=", cutoff)
-      .get();
+  /* ────────────────────────────────────────────────
+   * 1️⃣ Fetch recent location logs
+   * ──────────────────────────────────────────────── */
+  const logSnap = await db
+    .collection("location_logs")
+    .where("timestamp", ">=", cutoff)
+    .get();
 
-    const logs = logSnap.docs
-      .map(doc => doc.data())
-      .filter(log => log.lat && log.lng);
+  console.log(`📍 Location logs fetched: ${logSnap.size}`);
 
-    if (logs.length === 0) {
+  const logs = logSnap.docs
+    .map(d => d.data())
+    .filter(l =>
+      typeof l.lat === "number" &&
+      typeof l.lng === "number"
+    );
+
+  console.log(`📍 Valid logs after filtering: ${logs.length}`);
+
+  if (!logs.length) {
+    console.warn("⚠️ No valid location logs, exiting");
+    return;
+  }
+
+  /* ────────────────────────────────────────────────
+   * 2️⃣ Cluster logs
+   * ──────────────────────────────────────────────── */
+  const clusters: { lat: number; lng: number; count: number }[] = [];
+
+  logs.forEach(log => {
+    let assigned = false;
+
+    for (const cluster of clusters) {
+      if (
+        distance(log.lat, log.lng, cluster.lat, cluster.lng) <
+        GROUP_RADIUS_METERS
+      ) {
+        cluster.lat =
+          (cluster.lat * cluster.count + log.lat) / (cluster.count + 1);
+        cluster.lng =
+          (cluster.lng * cluster.count + log.lng) / (cluster.count + 1);
+        cluster.count++;
+        assigned = true;
+        break;
+      }
+    }
+
+    if (!assigned) {
+      clusters.push({ lat: log.lat, lng: log.lng, count: 1 });
+    }
+  });
+
+  console.log(`🧠 Clusters created: ${clusters.length}`);
+  clusters.forEach((c, i) =>
+    console.log(`  └─ Cluster ${i}: count=${c.count}`)
+  );
+
+  /* ────────────────────────────────────────────────
+   * 3️⃣ Fetch recent feedback
+   * ──────────────────────────────────────────────── */
+  const feedbackSnap = await db
+    .collection("event_feedback")
+    .where("timestamp", ">=", cutoff)
+    .get();
+
+  console.log(`🗣️ Feedback entries fetched: ${feedbackSnap.size}`);
+
+  const feedbackByEvent = new Map<string, number[]>();
+
+  feedbackSnap.docs.forEach(doc => {
+    const f = doc.data();
+
+    if (!f.eventId || !f.busyness) {
+      console.warn("⚠️ Invalid feedback doc:", doc.id);
       return;
     }
 
-    // 🔹 Step 2: Cluster logs
-    const groups: { lat: number; lng: number }[][] = [];
+    const score = busynessToScore(f.busyness);
 
-    logs.forEach(log => {
-      const point = { lat: log.lat, lng: log.lng };
-      let added = false;
+    if (!feedbackByEvent.has(f.eventId)) {
+      feedbackByEvent.set(f.eventId, []);
+    }
+    feedbackByEvent.get(f.eventId)!.push(score);
+  });
 
-      for (const group of groups) {
-        if (group.some(member =>
-          distance(point.lat, point.lng, member.lat, member.lng) < GROUP_RADIUS_METERS
-        )) {
-          group.push(point);
-          added = true;
-          break;
-        }
+  console.log(`🗂️ Events with feedback: ${feedbackByEvent.size}`);
+
+  /* ────────────────────────────────────────────────
+   * 4️⃣ Fetch ALL events near clusters
+   * ──────────────────────────────────────────────── */
+  const eventSnap = await db.collection("events").get();
+  console.log(`🎪 Events fetched: ${eventSnap.size}`);
+
+  const batch = db.batch();
+  let updatedCount = 0;
+
+  /* ────────────────────────────────────────────────
+   * 5️⃣ Compute busyness per event
+   * ──────────────────────────────────────────────── */
+  for (const snap of eventSnap.docs) {
+    const eventData = snap.data();
+    
+    const lat = eventData?.location?.lat;
+    const lng = eventData?.location?.lng;
+
+     if (typeof lat !== "number" || typeof lng !== "number") {
+    console.warn(
+      `⚠️ Event ${snap.id} missing coordinates`,
+      {
+        location: eventData?.location ?? null,
       }
+    );
+    continue;
+  }
+   console.log(
+    `📍 Event ${snap.id} coordinates OK: lat=${lat}, lng=${lng}`
+  );
 
-      if (!added) groups.push([point]);
-    });
+    let nearest: any = null;
+    let minDist = Infinity;
 
-    // 🔹 Step 3: Wipe old clusters
-    const clusterRef = db.collection("popularity_clusters");
-    const mergedRef = db.collection("merged_clusters");
-
-    const [popSnap, mergedSnap] = await Promise.all([
-      clusterRef.get(),
-      mergedRef.get()
-    ]);
-
-    const batch = db.batch();
-    popSnap.docs.forEach(doc => batch.delete(doc.ref));
-    mergedSnap.docs.forEach(doc => batch.delete(doc.ref));
-
-    // 🔹 Step 4: Write new popularity_clusters
-    const clusterDataMap = new Map<string, any>();
-    groups.forEach((group, index) => {
-      const avgLat = group.reduce((sum, p) => sum + p.lat, 0) / group.length;
-      const avgLng = group.reduce((sum, p) => sum + p.lng, 0) / group.length;
-      const count = group.length;
-      const level = inferLevel(count);
-      const id = `cluster_${index}`;
-
-      const data = {
-        lat: avgLat,
-        lng: avgLng,
-        count,
-        level,
-        updated: Timestamp.now(),
-      };
-
-      batch.set(clusterRef.doc(id), data);
-      clusterDataMap.set(id, data); // For merging
-    });
-
-    // 🔹 Step 5: Merge clusters with recent feedback
-    const feedbackSnap = await db.collection("event_feedback")
-      .where("timestamp", ">=", cutoff)
-      .get();
-
-    const feedbackMap = new Map<string, number[]>();
-    feedbackSnap.docs.forEach(doc => {
-      const data = doc.data();
-      const score = data.busyness === "Quiet" ? 0 : data.busyness === "Moderate" ? 1 : 2;
-      const clusterId = data.clusterId;
-      if (!feedbackMap.has(clusterId)) feedbackMap.set(clusterId, []);
-      feedbackMap.get(clusterId)!.push(score);
-    });
-
-    for (const [clusterId, cluster] of clusterDataMap.entries()) {
-      const locationScore = cluster.count < 3 ? 0 : cluster.count < 6 ? 1 : 2;
-      const feedbackScores = feedbackMap.get(clusterId) || [];
-
-      if (cluster.count < 2 && feedbackScores.length === 0) continue;
-
-      const feedbackScore = feedbackScores.length
-        ? feedbackScores.reduce((a, b) => a + b, 0) / feedbackScores.length
-        : locationScore;
-
-      const weighted = 0.3 * locationScore + 0.7 * feedbackScore;
-      const finalLevel = weighted >= 1.5 ? "Busy" : weighted >= 0.5 ? "Moderate" : "Quiet";
-
-      batch.set(mergedRef.doc(clusterId), {
-        lat: cluster.lat,
-        lng: cluster.lng,
-        level: finalLevel,
-        updated: Timestamp.now(),
-      });
+    for (const cluster of clusters) {
+      const d = distance(lat, lng, cluster.lat, cluster.lng);
+      if (d < minDist) {
+        minDist = d;
+        nearest = cluster;
+      }
     }
 
-    await batch.commit();
+    if (!nearest) continue;
+
+    const locationScore =
+      nearest.count < 3 ? 0 :
+      nearest.count < 6 ? 1 : 1.75;
+
+    const feedbackScores = feedbackByEvent.get(snap.id) || [];
+
+    // Bayesian-smoothed feedback score
+    const feedbackScore =
+      feedbackScores.length
+        ? bayesianBusyness(feedbackScores)
+        : locationScore;
+
+    // Dynamic location weighting
+    const locationConfidence = Math.min(
+      nearest.count / LOCATION_CONFIDENCE_SATURATION,
+      1
+    );
+    const locationWeight = 0.5 * locationConfidence;
+    const feedbackWeight = 1 - locationWeight;
+
+    // Normalize scores to [0,1]
+    const normalizedLocationScore = locationScore / 2;
+    const normalizedFeedbackScore = feedbackScore / 2;
+
+    // Weighted final score
+    const weighted = locationWeight * normalizedLocationScore + feedbackWeight * normalizedFeedbackScore;
+
+    // Determine final busyness level
+    const finalLevel =
+      weighted >= 0.6 ? "Busy" :
+      weighted >= 0.3 ? "Moderate" :
+      "Quiet";
+
+    // Count feedback buckets for detailed debug
+    let q = 0, m = 0, b = 0;
+    for (const s of feedbackScores) {
+      if (s === 0) q++;
+      else if (s === 1) m++;
+      else b++;
+    }
+
+    // Priors (must match bayesianBusyness)
+    const pq = 0.1, pm = 0.05, pb = 0.1;
+
+    // Bayes numerator / denominator (for logging clarity)
+    const bayesianNumerator = 0 * (q + pq) + 1 * (m + pm) + 2 * (b + pb);
+    const bayesianDenominator = (q + pq) + (m + pm) + (b + pb);
+
+    /* 🔍 FULL DEBUG — BUSYNESS CALCULATION */
+    console.log(
+      "📊 Busyness calc",
+      {
+        eventId: snap.id,
+        clusterCount: nearest.count,
+        locationScore,
+        normalizedLocationScore: Number(normalizedLocationScore.toFixed(2)),
+
+        feedbackCount: feedbackScores.length,
+        feedbackScores,
+        feedbackBreakdown: { Quiet: q, Moderate: m, Busy: b },
+        normalizedFeedbackScore: Number(normalizedFeedbackScore.toFixed(2)),
+
+        priors: { Quiet: pq, Moderate: pm, Busy: pb },
+        bayesian: {
+          numerator: bayesianNumerator,
+          denominator: bayesianDenominator,
+          score: Number(feedbackScore.toFixed(2)),
+        },
+
+        locationConfidence: Number(locationConfidence.toFixed(2)),
+        locationWeight: Number(locationWeight.toFixed(2)),
+        feedbackWeight: Number(feedbackWeight.toFixed(2)),
+
+        weighted: Number(weighted.toFixed(2)),
+        finalLevel,
+      }
+    );
+
+
+    console.log(
+      `📊 Event ${snap.id}: loc=${locationScore}, fb=${feedbackScores.length}, final=${finalLevel}`
+    );
+
+    batch.update(snap.ref, {
+      busynessLevel: finalLevel,
+      busynessUpdatedAt: Timestamp.now(),
+    });
+
+    updatedCount++;
   }
+
+  if (!updatedCount) {
+    console.warn("⚠️ No events updated");
+  } else {
+    await batch.commit();
+    console.log(`✅ Busyness updated for ${updatedCount} events`);
+  }
+}
 );
 
 
@@ -175,19 +324,23 @@ export const cleanUpOldEvents = onDocumentUpdated(
 
     // Only delete if single-use and event was >24h ago
     if (!docData.recurring && eventTime && eventTime < Date.now() - 24 * 60 * 60 * 1000) {
-      const folderPrefix = `event_pics/${eventId}/`;
+      const foldersToDelete = [
+        `event_pics/${eventId}/`,
+        `event_icon/${eventId}/`
+      ];
       let deletedFiles = 0;
 
       try {
-        const [files] = await storageBucket.getFiles({ prefix: folderPrefix });
-
-        for (const file of files) {
-          try {
-            await file.delete();
-            deletedFiles++;
-            console.log(`Deleted file: ${file.name}`);
-          } catch (err) {
-            console.error(`Cannot delete file ${file.name}:`, err);
+        for (const folderPrefix of foldersToDelete) {
+          const [files] = await storageBucket.getFiles({ prefix: folderPrefix });
+          for (const file of files) {
+            try {
+              await file.delete();
+              deletedFiles++;
+              console.log(`Deleted file: ${file.name}`);
+            } catch (err) {
+              console.error(`Cannot delete file ${file.name}:`, err);
+            }
           }
         }
 
@@ -201,4 +354,3 @@ export const cleanUpOldEvents = onDocumentUpdated(
     }
   }
 );
-

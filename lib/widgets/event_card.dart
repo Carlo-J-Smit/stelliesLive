@@ -131,22 +131,39 @@ class _EventCardState extends State<EventCard> {
               Positioned(
                 top: 0,
                 right: 0,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: _tagColor(event.tag!),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(_tagIcon(event.tag!), color: Colors.white, size: 14),
-                      const SizedBox(width: 4),
-                      Text(event.tag!, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
-                    ],
-                  ),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final screenWidth = MediaQuery.of(context).size.width;
+                    final showText = screenWidth > 360; // arbitrary breakpoint for small screens
+
+                    return Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: _tagColor(event.tag!),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(_tagIcon(event.tag!), color: Colors.white, size: 14),
+                          if (showText) ...[
+                            const SizedBox(width: 4),
+                            Text(
+                              event.tag!,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    );
+                  },
                 ),
               ),
+
           ],
         ),
       ),

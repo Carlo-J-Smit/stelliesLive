@@ -404,7 +404,7 @@ class _ActivityScreenState extends State<ActivityScreen> {
             _lastNotified[event.id] = now;
             debugPrint('[NOTIF] Proximity trigger ran');
             if (mounted) {
-              _askUserForFeedback(event);
+              //_askUserForFeedback(event);
             }
             await _sendFeedbackNotification(event);
             // ScaffoldMessenger.of(context).showSnackBar(
@@ -461,136 +461,136 @@ class _ActivityScreenState extends State<ActivityScreen> {
     debugPrint("[NOTIF] Init complete: blocked = $_notificationsBlocked");
 
     if (_nearbyEvent != null) {
-      _askUserForFeedback(_nearbyEvent!);
+      //_askUserForFeedback(_nearbyEvent!);
     }
   }
 
-  void _askUserForFeedback(Event event) {
-    final isDark = _isDarkMap;
-
-    showDialog(
-      context: context,
-      builder:
-          (_) => AlertDialog(
-            backgroundColor:
-                isDark
-                    ? const Color(0xCC1E1E1E) // 80% opacity black
-                    : Colors.white.withOpacity(0.90), // 95% opacity white
-
-            title: Text(
-              'At ${event.title}?',
-              style: TextStyle(
-                color: isDark ? Colors.white : Colors.black,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  'How busy is it?',
-                  style: TextStyle(
-                    color: isDark ? Colors.white70 : Colors.black87,
-                    fontSize: 16,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                ...['Quiet', 'Moderate', 'Busy'].map((level) {
-                  Color bgColor;
-                  switch (level) {
-                    case 'Quiet':
-                      bgColor = Colors.green;
-                      break;
-                    case 'Moderate':
-                      bgColor = Colors.orange;
-                      break;
-                    case 'Busy':
-                      bgColor = Colors.red;
-                      break;
-                    default:
-                      bgColor = Colors.grey;
-                  }
-
-                  return Padding(
-                    padding: const EdgeInsets.only(top: 6),
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: bgColor,
-                        foregroundColor: Colors.white,
-                      ),
-                      onPressed: () async {
-                        Navigator.of(context).pop(); // Close dialog immediately
-
-                        final pos = await Geolocator.getCurrentPosition();
-
-                        const maxDistance = 60.0;
-                        final mergedRef = FirebaseFirestore.instance.collection(
-                          'merged_clusters',
-                        );
-                        final snapshot = await mergedRef.get();
-
-                        String? clusterId;
-                        double minDistance = double.infinity;
-
-                        for (var doc in snapshot.docs) {
-                          final data = doc.data();
-                          final double lat = data['lat'];
-                          final double lng = data['lng'];
-
-                          final distance = Geolocator.distanceBetween(
-                            pos.latitude,
-                            pos.longitude,
-                            lat,
-                            lng,
-                          );
-
-                          if (distance < minDistance &&
-                              distance <= maxDistance) {
-                            minDistance = distance;
-                            clusterId = doc.id;
-                          }
-                        }
-
-                        if (clusterId == null) {
-                          final newDoc = await mergedRef.add({
-                            'lat': pos.latitude,
-                            'lng': pos.longitude,
-                            'level': level,
-                            'createdFrom': 'app',
-                            'updated': Timestamp.now(),
-                          });
-                          clusterId = newDoc.id;
-                          debugPrint("🆕 New cluster created: $clusterId");
-                        }
-
-                        try {
-                          await FirebaseFirestore.instance
-                              .collection('event_feedback')
-                              .add({
-                                'eventId': event.id,
-                                'timestamp': Timestamp.now(),
-                                'busyness': level,
-                                'userId':
-                                    FirebaseAuth.instance.currentUser?.uid,
-                                'clusterId': clusterId,
-                              });
-                          debugPrint(
-                            "✅ Feedback submitted for $clusterId ($level)",
-                          );
-                        } catch (e) {
-                          debugPrint("❌ Firestore write failed: $e");
-                        }
-                      },
-                      child: Text(level),
-                    ),
-                  );
-                }),
-              ],
-            ),
-          ),
-    );
-  }
+  // void _askUserForFeedback(Event event) {
+  //   final isDark = _isDarkMap;
+  //
+  //   showDialog(
+  //     context: context,
+  //     builder:
+  //         (_) => AlertDialog(
+  //           backgroundColor:
+  //               isDark
+  //                   ? const Color(0xCC1E1E1E) // 80% opacity black
+  //                   : Colors.white.withOpacity(0.90), // 95% opacity white
+  //
+  //           title: Text(
+  //             'At ${event.title}?',
+  //             style: TextStyle(
+  //               color: isDark ? Colors.white : Colors.black,
+  //               fontWeight: FontWeight.bold,
+  //             ),
+  //           ),
+  //           content: Column(
+  //             mainAxisSize: MainAxisSize.min,
+  //             crossAxisAlignment: CrossAxisAlignment.stretch,
+  //             children: [
+  //               Text(
+  //                 'How busy is it?',
+  //                 style: TextStyle(
+  //                   color: isDark ? Colors.white70 : Colors.black87,
+  //                   fontSize: 16,
+  //                 ),
+  //               ),
+  //               const SizedBox(height: 10),
+  //               ...['Quiet', 'Moderate', 'Busy'].map((level) {
+  //                 Color bgColor;
+  //                 switch (level) {
+  //                   case 'Quiet':
+  //                     bgColor = Colors.green;
+  //                     break;
+  //                   case 'Moderate':
+  //                     bgColor = Colors.orange;
+  //                     break;
+  //                   case 'Busy':
+  //                     bgColor = Colors.red;
+  //                     break;
+  //                   default:
+  //                     bgColor = Colors.grey;
+  //                 }
+  //
+  //                 return Padding(
+  //                   padding: const EdgeInsets.only(top: 6),
+  //                   child: ElevatedButton(
+  //                     style: ElevatedButton.styleFrom(
+  //                       backgroundColor: bgColor,
+  //                       foregroundColor: Colors.white,
+  //                     ),
+  //                     onPressed: () async {
+  //                       Navigator.of(context).pop(); // Close dialog immediately
+  //
+  //                       final pos = await Geolocator.getCurrentPosition();
+  //
+  //                       const maxDistance = 60.0;
+  //                       final mergedRef = FirebaseFirestore.instance.collection(
+  //                         'merged_clusters',
+  //                       );
+  //                       final snapshot = await mergedRef.get();
+  //
+  //                       String? clusterId;
+  //                       double minDistance = double.infinity;
+  //
+  //                       for (var doc in snapshot.docs) {
+  //                         final data = doc.data();
+  //                         final double lat = data['lat'];
+  //                         final double lng = data['lng'];
+  //
+  //                         final distance = Geolocator.distanceBetween(
+  //                           pos.latitude,
+  //                           pos.longitude,
+  //                           lat,
+  //                           lng,
+  //                         );
+  //
+  //                         if (distance < minDistance &&
+  //                             distance <= maxDistance) {
+  //                           minDistance = distance;
+  //                           clusterId = doc.id;
+  //                         }
+  //                       }
+  //
+  //                       if (clusterId == null) {
+  //                         final newDoc = await mergedRef.add({
+  //                           'lat': pos.latitude,
+  //                           'lng': pos.longitude,
+  //                           'level': level,
+  //                           'createdFrom': 'app',
+  //                           'updated': Timestamp.now(),
+  //                         });
+  //                         clusterId = newDoc.id;
+  //                         debugPrint("🆕 New cluster created: $clusterId");
+  //                       }
+  //
+  //                       try {
+  //                         await FirebaseFirestore.instance
+  //                             .collection('event_feedback')
+  //                             .add({
+  //                               'eventId': event.id,
+  //                               'timestamp': Timestamp.now(),
+  //                               'busyness': level,
+  //                               'userId':
+  //                                   FirebaseAuth.instance.currentUser?.uid,
+  //                               'clusterId': clusterId,
+  //                             });
+  //                         debugPrint(
+  //                           "✅ Feedback submitted for $clusterId ($level)",
+  //                         );
+  //                       } catch (e) {
+  //                         debugPrint("❌ Firestore write failed: $e");
+  //                       }
+  //                     },
+  //                     child: Text(level),
+  //                   ),
+  //                 );
+  //               }),
+  //             ],
+  //           ),
+  //         ),
+  //   );
+  // }
 
   void _sendTestNotification() async {
     debugPrint("Trying to send test notification...");

@@ -134,9 +134,9 @@ class _EventFeedbackDialogState extends State<EventFeedbackDialog> {
           const SizedBox(height: 12),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: ['Calm', 'Moderate', 'Busy'].map((level) {
+            children: ['Quiet', 'Moderate', 'Busy'].map((level) {
               Color bgColor = switch (level) {
-                'Calm' => Colors.green,
+                'Quiet' => Colors.green,
                 'Moderate' => Colors.orange,
                 'Busy' => Colors.red,
                 _ => Colors.grey,
