@@ -1,6 +1,7 @@
 //event_card
 
 import 'package:flutter/material.dart';
+import 'package:stellieslive/constants/colors.dart';
 import '../models/event.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:intl/intl.dart';
@@ -62,9 +63,14 @@ class _EventCardState extends State<EventCard> {
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppColors.eventCardBackground,
           borderRadius: BorderRadius.circular(12),
-          boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4)],
+          boxShadow:  [BoxShadow(
+            color: Colors.black.withOpacity(0.2), // shadow color
+            spreadRadius: 2,
+            blurRadius: 6,
+            offset: Offset(0, 3), // horizontal & vertical offset
+          ),],
         ),
         child: Stack(
           children: [
@@ -84,9 +90,9 @@ class _EventCardState extends State<EventCard> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(event.title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                            Text(event.title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16), softWrap: false,overflow: TextOverflow.ellipsis),
                             const SizedBox(height: 4),
-                            if (event.venue.isNotEmpty) Text(event.venue, style: const TextStyle(color: Colors.grey)),
+                            if (event.venue.isNotEmpty) Text(event.venue, style: const TextStyle(color: Colors.grey), softWrap: false,overflow: TextOverflow.ellipsis),
                             const SizedBox(height: 2),
                             Text(
                               event.recurring == true
@@ -134,7 +140,7 @@ class _EventCardState extends State<EventCard> {
                 child: LayoutBuilder(
                   builder: (context, constraints) {
                     final screenWidth = MediaQuery.of(context).size.width;
-                    final showText = screenWidth > 360; // arbitrary breakpoint for small screens
+                    final showText = screenWidth > 400; // arbitrary breakpoint for small screens
 
                     return Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),

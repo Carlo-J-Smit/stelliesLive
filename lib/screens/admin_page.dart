@@ -973,27 +973,38 @@ class _AdminPageState extends State<AdminPage> {
         context: context,
         builder: (context) {
           final screenWidth = MediaQuery.of(context).size.width;
-          final minCardWidth = 300.0; // minimum width on small screens
-          final maxCardWidth = screenWidth * 0.9;
+          //final minCardWidth = 300.0; // minimum width on small screens
+          final maxCardWidth = screenWidth * 0.99;
 
           return AlertDialog(
-            title: const Text('Preview Event'),
+            backgroundColor: AppColors.white, // Change dialog background color
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20), // Rounded corners
+            ),
+            insetPadding: const EdgeInsets.all(16), // Controls padding from screen edges
+            title: const Text(
+              'Preview Event',
+              style: TextStyle(color: AppColors.primaryRed), // Change title text color
+            ),
             content: ConstrainedBox(
               constraints: BoxConstraints(
-                minWidth: minCardWidth,
-                maxWidth: max(maxCardWidth, minCardWidth),
+                maxWidth: min(maxCardWidth, 800),
               ),
               child: SingleChildScrollView(
-                child: SizedBox(
-                  width: min(screenWidth * 0.7, maxCardWidth),
-                  child: EventCard(
-                    event: Event.fromMap('preview', previewData),
-                    pickedBytes: _pickedBytes,
-                    pickedFile: _pickedImage,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 1 ,vertical: 1 ), // Padding inside dialog
+                  child: SizedBox(
+                    width: max(screenWidth , maxCardWidth), // make EventCard wider
+                    child: EventCard(
+                      event: Event.fromMap('preview', previewData),
+                      pickedBytes: _pickedBytes,
+                      pickedFile: _pickedImage,
+                    ),
                   ),
                 ),
               ),
             ),
+            //actionsPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20), // padding for buttons
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context, false),

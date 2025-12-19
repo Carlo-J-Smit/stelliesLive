@@ -272,6 +272,9 @@ class _AnimatedFeedbackButtonState extends State<_AnimatedFeedbackButton>
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final showText = screenWidth > 400; // arbitrary breakpoint for small screens
+
     return GestureDetector(
       onTap: widget.onTap == null
           ? null
@@ -298,7 +301,7 @@ class _AnimatedFeedbackButtonState extends State<_AnimatedFeedbackButton>
           child: Text(widget.label!,
             style: TextStyle(
               fontWeight: FontWeight.bold,
-              fontSize: 14,
+              fontSize: showText ? 14 : 10,
               color: AppColors.textLight,
             ),
             textAlign: TextAlign.center,
