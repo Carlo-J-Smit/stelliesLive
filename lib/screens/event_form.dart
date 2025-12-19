@@ -11,19 +11,26 @@ import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:provider/provider.dart';
 
 import '../constants/colors.dart';
 import '../models/event.dart';
 import '../widgets/event_card.dart';
-
+import '../providers/event_provider.dart';
 class EventFormPage extends StatefulWidget {
   final Event? event;
+  final EventProvider provider; // <-- pass provider
 
-  const EventFormPage({super.key, this.event});
+  const EventFormPage({
+    super.key,
+    this.event,
+    required this.provider,
+  });
 
   @override
   State<EventFormPage> createState() => _EventFormPageState();
 }
+
 
 class _MapPickerDialog extends StatefulWidget {
   @override
@@ -697,6 +704,7 @@ class _EventFormPageState extends State<EventFormPage> {
             .add(data);
       }
 
+
       if (_pickedImage != null || _pickedBytes != null) {
         await _uploadEventImage(eventRef.id, _titleController.text.trim());
         await eventRef.update({'imageUrl': _imageUrl});
@@ -706,6 +714,17 @@ class _EventFormPageState extends State<EventFormPage> {
         await _uploadEventIcon(eventRef.id, _titleController.text.trim());
         await eventRef.update({'iconUrl': _iconUrl});
       }
+
+      if (isEdit) {
+        await eventRef.update(data);
+        widget.provider.updateEvent(widget.event!.id, data); // <-- update provider
+      } else {
+        final newDoc = await FirebaseFirestore.instance
+            .collection('events')
+            .add(data);
+        widget.provider.addEvent(Event.fromMap(newDoc.id, data)); // <-- add to provider
+      }
+
 
       Navigator.pop(context);
     } catch (e) {
@@ -784,6 +803,8 @@ class _EventFormPageState extends State<EventFormPage> {
           .collection('events')
           .doc(widget.event!.id)
           .delete();
+
+      widget.provider.removeEvent(widget.event!.id); // <-- remove from provider
 
       // Optionally: delete images from Firebase Storage
       if (_imageUrl != null) {

@@ -76,12 +76,27 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     );
   }
 
-  void _openEventForm({Event? event}) {
-    Navigator.push(
+  void _openEventForm({Event? event}) async {
+    final provider = Provider.of<EventProvider>(context, listen: false);
+
+    await Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => EventFormPage(event: event)),
+      MaterialPageRoute(
+        builder: (_) => EventFormPage(
+          event: event,
+          provider: provider, // <-- pass it here
+        ),
+      ),
     );
+
+    // Refresh events after returning
+    setState(() {
+      _events = provider.allEvents;
+      _filterEvents(_searchController.text);
+    });
   }
+
+
 
   Widget _buildSidebar() {
     return Container(

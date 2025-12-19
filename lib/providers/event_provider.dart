@@ -11,13 +11,21 @@ class EventProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  void addEvent(Event event) {
-    _allEvents.add(event);
+  void addEvent(Event e) {
+    allEvents.add(e);
     notifyListeners();
   }
 
-  void removeEvent(String eventId) {
-    _allEvents.removeWhere((e) => e.id == eventId);
+  void updateEvent(String id, Map<String, dynamic> data) {
+    final index = allEvents.indexWhere((e) => e.id == id);
+    if (index != -1) {
+      allEvents[index] = Event.fromMap(id, data);
+      notifyListeners();
+    }
+  }
+
+  void removeEvent(String id) {
+    allEvents.removeWhere((e) => e.id == id);
     notifyListeners();
   }
 }
