@@ -27,6 +27,7 @@ class _EventsScreenState extends State<EventsScreen> {
   List<Event> _filteredEvents = [];
   String _searchQuery = '';
   String _filterType = 'All';
+  String _selectedTag = 'All';
   final TextEditingController _searchController = TextEditingController();
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
@@ -80,21 +81,23 @@ class _EventsScreenState extends State<EventsScreen> {
   void _applyFilters() {
     setState(() {
       final lowerQuery = _searchController.text.toLowerCase();
-      _filteredEvents =
-          _allEvents.where((event) {
-            final matchesSearch =
-                event.title.toLowerCase().contains(lowerQuery) ||
+      _filteredEvents = _allEvents.where((event) {
+        final matchesSearch =
+            event.title.toLowerCase().contains(lowerQuery) ||
                 event.venue.toLowerCase().contains(lowerQuery);
-            final matchesFilter =
-                _filterType == 'All' || event.category == _filterType;
-            return matchesSearch && matchesFilter;
-          }).toList();
+        final matchesCategory =
+            _filterType == 'All' || event.category == _filterType;
+        final matchesTag =
+            _selectedTag == 'All' || (event.tag?.contains(_selectedTag) ?? false);
+        return matchesSearch && matchesCategory && matchesTag;
+      }).toList();
     });
   }
 
   void _clearFilters() {
     _searchController.clear();
     _filterType = 'All';
+    _selectedTag = 'All';
     _applyFilters();
   }
 
@@ -194,15 +197,20 @@ class _EventsScreenState extends State<EventsScreen> {
               isNarrow
                   ? Drawer(
                     child: Sidebar(
-                      onSearchChanged: (query) => _applyFilters(),
-                      onFilterChanged: (filter) {
-                        _filterType = filter ?? 'All';
+                      onSearchChanged: (_) => _applyFilters(),
+                      onFilterChanged: (value) {
+                        _filterType = value ?? 'All';
+                        _applyFilters();
+                      },
+                      onTagChanged: (value) {
+                        _selectedTag = value ?? 'All';
                         _applyFilters();
                       },
                       onClearFilters: _clearFilters,
-                      onClose: () => Navigator.of(context).pop(),
                       searchController: _searchController,
                       selectedFilter: _filterType,
+                      selectedTag: _selectedTag,
+                      onClose: () => Navigator.of(context).pop(),
                     ),
                   )
                   : null,
@@ -217,15 +225,20 @@ class _EventsScreenState extends State<EventsScreen> {
                   children: [
                     if (!isNarrow)
                       Sidebar(
-                        onSearchChanged: (query) => _applyFilters(),
-                        onFilterChanged: (filter) {
-                          _filterType = filter ?? 'All';
+                        onSearchChanged: (_) => _applyFilters(),
+                        onFilterChanged: (value) {
+                          _filterType = value ?? 'All';
+                          _applyFilters();
+                        },
+                        onTagChanged: (value) {
+                          _selectedTag = value ?? 'All';
                           _applyFilters();
                         },
                         onClearFilters: _clearFilters,
-                        onClose: () => Navigator.of(context).pop(),
                         searchController: _searchController,
                         selectedFilter: _filterType,
+                        selectedTag: _selectedTag,
+                        onClose: () => Navigator.of(context).pop(),
                       ),
 
                     Expanded(

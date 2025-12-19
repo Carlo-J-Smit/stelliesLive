@@ -947,7 +947,7 @@ class _ActivityScreenState extends State<ActivityScreen> {
                         AnimatedPositioned(
                           duration: const Duration(milliseconds: 2000),
 
-                          bottom: _bottomMapPadding + 120,
+                          bottom: _bottomMapPadding + 135,
                           //_bottomMapPadding + 165, // base + padding from ad
                           right: 12,
                           child: _MapCircleButton(
@@ -966,7 +966,7 @@ class _ActivityScreenState extends State<ActivityScreen> {
                         // Custom Zoom Controls (bottom-right)
                         AnimatedPositioned(
                           duration: const Duration(milliseconds: 2000),
-                          bottom: _bottomMapPadding,
+                          bottom: _bottomMapPadding+20,
                           //bottom: _bottomMapPadding + 50,
                           right: 12,
                           child: Column(

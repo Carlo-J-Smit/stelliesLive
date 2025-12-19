@@ -140,7 +140,7 @@ class _EventCardState extends State<EventCard> {
                 child: LayoutBuilder(
                   builder: (context, constraints) {
                     final screenWidth = MediaQuery.of(context).size.width;
-                    final showText = screenWidth > 400; // arbitrary breakpoint for small screens
+                    final showText = screenWidth > 500; // arbitrary breakpoint for small screens
 
                     return Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),

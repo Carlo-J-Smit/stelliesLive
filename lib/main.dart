@@ -50,6 +50,7 @@ void main() async {
       const useEmulator = true; // <-- toggle ON/OFF
 
       final emulatorHost = kIsWeb ? 'localhost' : '10.0.2.2';
+      //final emulatorHost = '192.168.68.104'; //over network
 
       if (useEmulator) {
         FirebaseFirestore.instance.useFirestoreEmulator(emulatorHost, 8080);
