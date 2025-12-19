@@ -53,6 +53,8 @@ class _ActivityScreenState extends State<ActivityScreen> {
   double _bottomMapPadding = 0;
   Set<Marker> _eventMarkers = {};
   DateTime _lastReload = DateTime.fromMillisecondsSinceEpoch(0);
+  final Map<String, BitmapDescriptor> _markerIconCache = {};
+
 
 
   Future<void> _initActivity() async {
@@ -200,6 +202,13 @@ class _ActivityScreenState extends State<ActivityScreen> {
 
 
   Future<BitmapDescriptor> getEventMarkerIcon(Event event) async {
+    // Return cached icon if available
+    if (_markerIconCache.containsKey(event.id)) {
+      debugPrint("🔍 Using cached marker icon for ${event.id}");
+      return _markerIconCache[event.id]!;
+    }
+
+
     try {
       final safeTitle = event.title
           .trim()
@@ -259,7 +268,7 @@ class _ActivityScreenState extends State<ActivityScreen> {
           categoryColor = Colors.red;
           break;
         default:
-          categoryColor = Colors.white; // fallback if no match
+          categoryColor =  Colors.black; // fallback if no match
       }
       final Paint ringPaint = Paint()
         ..color = categoryColor
@@ -305,7 +314,12 @@ class _ActivityScreenState extends State<ActivityScreen> {
 
       if (byteData == null) return BitmapDescriptor.defaultMarker;
 
-      return BitmapDescriptor.fromBytes(byteData.buffer.asUint8List());
+      final icon = BitmapDescriptor.fromBytes(byteData.buffer.asUint8List());
+
+      // Cache it
+      _markerIconCache[event.id] = icon;
+
+      return icon;
     } catch (e) {
       debugPrint("❌ Error processing marker icon: $e");
     }
@@ -792,6 +806,7 @@ class _ActivityScreenState extends State<ActivityScreen> {
           ),
         ),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start, // align items to the left
           children: [
             _LegendItem(color: Colors.green, label: 'Quiet', isDark: isDark),
             _LegendItem(
@@ -800,6 +815,7 @@ class _ActivityScreenState extends State<ActivityScreen> {
               isDark: isDark,
             ),
             _LegendItem(color: Colors.red, label: 'Busy', isDark: isDark),
+            _LegendItem(color: Colors.black, label: 'No Information', isDark: isDark),
           ],
         ),
       ),
@@ -975,7 +991,7 @@ class _ActivityScreenState extends State<ActivityScreen> {
                         ),
 
                         Positioned(
-                          top: 100,
+                          top: 120,
                           right: 12,
                           child: Opacity(
                             opacity: 0.7,
@@ -993,6 +1009,8 @@ class _ActivityScreenState extends State<ActivityScreen> {
                                 prefs.setBool('isDarkMap', _isDarkMap);
 
                                 _applyMapStyle();
+
+
                               },
                               backgroundColor: Colors.white,
                               foregroundColor: Colors.black,

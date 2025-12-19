@@ -49,9 +49,7 @@ class _EventFeedbackDialogState extends State<EventFeedbackDialog> {
   }
 
   Future<void> _submitLikeDislike(Event event, {required bool liked}) async {
-    final eventRef = FirebaseFirestore.instance
-        .collection('events')
-        .doc(event.id);
+    final eventRef = FirebaseFirestore.instance.collection('events').doc(event.id);
     await eventRef.update({
       'likes': liked ? FieldValue.increment(1) : FieldValue.increment(0),
       'dislikes': liked ? FieldValue.increment(0) : FieldValue.increment(1),
@@ -61,197 +59,180 @@ class _EventFeedbackDialogState extends State<EventFeedbackDialog> {
 
   @override
   Widget build(BuildContext context) {
-    debugPrint('BUILD: event_marker 1');
     final screenWidth = MediaQuery.of(context).size.width;
-    final minCardWidth = 600.0;
+    final minCardWidth = 300.0;
     final maxCardWidth = screenWidth * 0.9;
+    final dialogWidth = min(screenWidth * 0.9, 600).toDouble();
 
     return AlertDialog(
-      backgroundColor:
-          widget.isDarkMode
-              ? AppColors.textLight.withOpacity(0.6)
-              : AppColors.textLight.withOpacity(0.6),
+      backgroundColor: widget.isDarkMode
+          ? AppColors.textLight.withOpacity(0.6)
+          : AppColors.textLight.withOpacity(0.6),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       contentPadding: const EdgeInsets.all(16),
-      content: ConstrainedBox(
-        constraints: BoxConstraints(
-          minWidth: minCardWidth,
-          maxWidth: max(maxCardWidth, minCardWidth),
-        ),
+      content: SizedBox(
+        width: min(MediaQuery.of(context).size.width * 0.9, 600),
         child: SingleChildScrollView(
-          child: SizedBox(
-            width: double.infinity,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                EventCard(event: widget.event),
-                const SizedBox(height: 16),
-
-                // Row: Busyness (left) and Ratings (right)
-                IntrinsicHeight(
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                width: dialogWidth,
+                child: EventCard(event: widget.event),
+              ),
+              const SizedBox(height: 16),
+              // Use MediaQuery to switch layout
+              Builder(builder: (context) {
+                final isNarrow = MediaQuery.of(context).size.width < 700;
+                if (isNarrow) {
+                  return Column(
                     children: [
-                      // Left side: Busyness
-                      Flexible(
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 12,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppColors.darkInteract.withOpacity(0.5),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                'Current Busyness:',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 14,
-                                  color: AppColors.textLight,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.start,
-                                children:
-                                    ['Quiet', 'Moderate', 'Busy'].map((level) {
-                                      Color bgColor;
-                                      switch (level) {
-                                        case 'Quiet':
-                                          bgColor = Colors.green;
-                                          break;
-                                        case 'Moderate':
-                                          bgColor = Colors.orange;
-                                          break;
-                                        case 'Busy':
-                                          bgColor = Colors.red;
-                                          break;
-                                        default:
-                                          bgColor = Colors.grey;
-                                      }
-
-                                      final isDisabled =
-                                          _selectedBusyness != null;
-
-                                      return Padding(
-                                        padding: const EdgeInsets.only(
-                                          right: 12,
-                                        ),
-                                        child: _AnimatedFeedbackButton(
-                                          label: level,
-                                          color:
-                                              isDisabled
-                                                  ? Colors.grey
-                                                  : bgColor,
-                                          onTap:
-                                              isDisabled
-                                                  ? null
-                                                  : () async {
-                                                    await _submitBusynessFeedback(
-                                                      widget.event,
-                                                      level,
-                                                    );
-                                                    setState(
-                                                      () =>
-                                                          _selectedBusyness =
-                                                              level,
-                                                    );
-                                                  },
-                                        ),
-                                      );
-                                    }).toList(),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-
-                      const SizedBox(width: 20),
-
-                      // Right side: Ratings
-                      Flexible(
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 12,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppColors.darkInteract.withOpacity(0.5),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                'Ratings',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 14,
-                                  color: AppColors.textLight,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  _LikeDislikeButton(
-                                    icon: Icons.thumb_up,
-                                    color: Colors.green,
-                                    count: _likes, //(_liked ? _likes + 1 : _likes),
-                                    disabled: _liked || _disliked,
-                                    onTap:
-                                        _liked || _disliked
-                                            ? null
-                                            : () async {
-                                              await _submitLikeDislike(
-                                                widget.event,
-                                                liked: true,
-                                              );
-                                              setState(() {
-                                                _liked = true;
-                                                _likes += 1;
-                                              });
-                                            },
-                                  ),
-                                  const SizedBox(width: 16),
-                                  _LikeDislikeButton(
-                                    icon: Icons.thumb_down,
-                                    color: Colors.red,
-                                    count: _dislikes,
-                                        //(_disliked ? _dislikes + 1 : _dislikes),
-                                    disabled: _liked || _disliked,
-                                    onTap:
-                                        _liked || _disliked
-                                            ? null
-                                            : () async {
-                                              await _submitLikeDislike(
-                                                widget.event,
-                                                liked: false,
-                                              );
-                                              setState(() {
-                                                _disliked = true;
-                                                _dislikes += 1;
-                                              });
-                                            },
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
+                      SizedBox(width: dialogWidth, child: _busynessSection()),
+                      const SizedBox(height: 16),
+                      SizedBox(width: dialogWidth, child: _ratingsSection()),
                     ],
-                  ),
-                ),
-              ],
-            ),
+                  );
+                } else {
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SizedBox(width: dialogWidth/1.5, child: _busynessSection()),
+                      const SizedBox(width: 20),
+                      SizedBox(width: dialogWidth/3.5, child: _ratingsSection()),
+                    ],
+                  );
+                }
+              }),
+            ],
           ),
         ),
+      ),
+    );
+  }
+
+  // ----------------------
+  // Busyness Section
+  // ----------------------
+  Widget _busynessSection() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.darkInteract.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Text(
+            'Current Busyness:',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+              color: AppColors.textLight,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: ['Calm', 'Moderate', 'Busy'].map((level) {
+              Color bgColor = switch (level) {
+                'Calm' => Colors.green,
+                'Moderate' => Colors.orange,
+                'Busy' => Colors.red,
+                _ => Colors.grey,
+              };
+
+              final isDisabled = _selectedBusyness != null;
+
+              int flex = switch (level) {
+                'Medium' => 3, // middle button wider
+                _ => 2,        // ends slightly shorter
+              };
+
+              return Expanded(
+                flex: flex,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: _AnimatedFeedbackButton(
+                    label: level,
+                    color: isDisabled ? Colors.grey : bgColor,
+                    onTap: isDisabled
+                        ? null
+                        : () async {
+                      await _submitBusynessFeedback(widget.event, level);
+                      setState(() => _selectedBusyness = level);
+                    },
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 4),
+        ],
+      ),
+    );
+  }
+
+
+  // ----------------------
+  // Ratings Section
+  // ----------------------
+  Widget _ratingsSection() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.darkInteract.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Text(
+            'Ratings',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+              color: AppColors.textLight,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _LikeDislikeButton(
+                icon: Icons.thumb_up,
+                color: Colors.green,
+                count: _likes,
+                disabled: _liked || _disliked,
+                onTap: _liked || _disliked
+                    ? null
+                    : () async {
+                  await _submitLikeDislike(widget.event, liked: true);
+                  setState(() {
+                    _liked = true;
+                    _likes += 1;
+                  });
+                },
+              ),
+              const SizedBox(width: 16),
+              _LikeDislikeButton(
+                icon: Icons.thumb_down,
+                color: Colors.red,
+                count: _dislikes,
+                disabled: _liked || _disliked,
+                onTap: _liked || _disliked
+                    ? null
+                    : () async {
+                  await _submitLikeDislike(widget.event, liked: false);
+                  setState(() {
+                    _disliked = true;
+                    _dislikes += 1;
+                  });
+                },
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -276,8 +257,7 @@ class _AnimatedFeedbackButton extends StatefulWidget {
   });
 
   @override
-  State<_AnimatedFeedbackButton> createState() =>
-      _AnimatedFeedbackButtonState();
+  State<_AnimatedFeedbackButton> createState() => _AnimatedFeedbackButtonState();
 }
 
 class _AnimatedFeedbackButtonState extends State<_AnimatedFeedbackButton>
@@ -292,33 +272,39 @@ class _AnimatedFeedbackButtonState extends State<_AnimatedFeedbackButton>
 
   @override
   Widget build(BuildContext context) {
-    debugPrint('BUILD: Event marker 2');
     return GestureDetector(
-      onTap:
-          widget.onTap == null
-              ? null
-              : () {
-                _animate();
-                widget.onTap?.call();
-              },
+      onTap: widget.onTap == null
+          ? null
+          : () {
+        _animate();
+        widget.onTap?.call();
+      },
       child: AnimatedScale(
         scale: _scale,
         duration: const Duration(milliseconds: 100),
         curve: Curves.easeOut,
-        child:
-            widget.icon != null
-                ? CircleAvatar(
-                  backgroundColor: widget.color,
-                  child: Icon(widget.icon, color: Colors.white),
-                )
-                : ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: widget.color,
-                    foregroundColor: Colors.white,
-                  ),
-                  onPressed: widget.onTap,
-                  child: Text(widget.label!),
-                ),
+        child: widget.icon != null
+            ? CircleAvatar(
+          backgroundColor: widget.color,
+          child: Icon(widget.icon, color: Colors.white),
+        )
+            : ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            backgroundColor: widget.color,
+            foregroundColor: Colors.white,
+          ),
+          onPressed: widget.onTap,
+          child: Text(widget.label!,
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+              color: AppColors.textLight,
+            ),
+            textAlign: TextAlign.center,
+            softWrap: false,
+          ),
+        ),
       ),
     );
   }
@@ -357,29 +343,25 @@ class _LikeDislikeButtonState extends State<_LikeDislikeButton>
 
   @override
   Widget build(BuildContext context) {
-    debugPrint('BUILD: event marker 3');
     final bgColor = widget.disabled ? Colors.grey : widget.color;
     return MouseRegion(
-      onEnter:
-          (_) => setState(() {
-            _hovering = true;
-            _scale = 1.05;
-          }),
-      onExit:
-          (_) => setState(() {
-            _hovering = false;
-            _scale = 1.0;
-          }),
+      onEnter: (_) => setState(() {
+        _hovering = true;
+        _scale = 1.05;
+      }),
+      onExit: (_) => setState(() {
+        _hovering = false;
+        _scale = 1.0;
+      }),
       cursor:
-          widget.disabled ? SystemMouseCursors.basic : SystemMouseCursors.click,
+      widget.disabled ? SystemMouseCursors.basic : SystemMouseCursors.click,
       child: GestureDetector(
-        onTap:
-            widget.disabled
-                ? null
-                : () {
-                  _animateTap();
-                  widget.onTap?.call();
-                },
+        onTap: widget.disabled
+            ? null
+            : () {
+          _animateTap();
+          widget.onTap?.call();
+        },
         child: AnimatedScale(
           scale: _scale,
           duration: const Duration(milliseconds: 100),
