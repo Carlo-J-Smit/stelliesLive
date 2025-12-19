@@ -98,7 +98,7 @@ class _EventFeedbackDialogState extends State<EventFeedbackDialog> {
                     children: [
                       SizedBox(width: dialogWidth/1.5, child: _busynessSection()),
                       const SizedBox(width: 20),
-                      SizedBox(width: dialogWidth/3.5, child: _ratingsSection()),
+                      SizedBox(width: dialogWidth/3.35, child: _ratingsSection()),
                     ],
                   );
                 }

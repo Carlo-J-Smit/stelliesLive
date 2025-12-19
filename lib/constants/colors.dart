@@ -8,5 +8,6 @@ class AppColors {
   static const accent = Color.fromARGB(255, 58, 5, 14);
   static const primaryRedAlpha = Color.fromARGB(50, 109, 9, 25);
   static const eventCardBackground = Color.fromARGB(255, 255, 255, 255);
+  static const adminBar = Color.fromARGB(255, 64, 15, 23);
 }
 

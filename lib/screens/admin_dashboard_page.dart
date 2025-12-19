@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../providers/event_provider.dart';
 import '../screens/event_form.dart';
 import 'dart:math';
+import '../widgets/nav_bar.dart';
 
 class AdminDashboardPage extends StatefulWidget {
   const AdminDashboardPage({super.key});
@@ -98,30 +99,51 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 
 
 
-  Widget _buildSidebar() {
-    return Container(
-      width: 200,
-      color: Colors.grey[100],
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(16),
-            alignment: Alignment.center,
-            child: Text(
-              businessName,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
+  Widget _buildSidebar({VoidCallback? onClose}) {
+    final isNarrow = MediaQuery.of(context).size.width < 700;
+
+    return SafeArea(
+      child: Container(
+        width: 200,
+        color: Colors.grey[100],
+        child: Column(
+          children: [
+            // Close button on narrow screens
+            if (isNarrow && onClose != null)
+              Align(
+                alignment: Alignment.centerRight,
+                child: IconButton(
+                  icon: const Icon(Icons.arrow_back_ios, color: Colors.red),
+                  onPressed: onClose,
+                ),
               ),
-              textAlign: TextAlign.center,
+            Container(
+              padding: const EdgeInsets.all(16),
+              alignment: Alignment.center,
+              child: Text(
+                businessName,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+                textAlign: TextAlign.center,
+              ),
             ),
-          ),
-          const Divider(),
-          _sidebarItem("Events", 0),
-          _sidebarItem("Analytics", 1),
-          _sidebarItem("Settings", 2),
-        ],
+            const Divider(color: AppColors.primaryRed),
+            Expanded(
+              child: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    _sidebarItem("Events", 0),
+                    _sidebarItem("Analytics", 1),
+                    _sidebarItem("Settings", 2),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -141,13 +163,13 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                   : index == 1
                   ? Icons.bar_chart
                   : Icons.settings,
-              color: selected ? Colors.red : Colors.black54,
+              color: selected ? AppColors.accent : AppColors.darkInteract,
             ),
             const SizedBox(width: 10),
             Text(
               title,
               style: TextStyle(
-                color: selected ? Colors.red : Colors.black54,
+                color: selected ?  AppColors.accent : AppColors.darkInteract,
                 fontWeight: selected ? FontWeight.bold : FontWeight.normal,
               ),
             ),
@@ -156,6 +178,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       ),
     );
   }
+
 
   Widget _buildEventGrid() {
     // +1 for the "Create New Event" tile
@@ -182,7 +205,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: const [
-                    Icon(Icons.add, size: 50, color: Colors.red),
+                    Icon(Icons.add, size: 50, color: AppColors.primaryRed),
                     SizedBox(height: 8),
                     Text(
                       "Create New Event",
@@ -276,6 +299,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isNarrow = MediaQuery.of(context).size.width < 700;
+
     Widget content;
     switch (_selectedTabIndex) {
       case 0:
@@ -307,9 +332,59 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     }
 
     return Scaffold(
-      body: Row(children: [_buildSidebar(), Expanded(child: content)]),
+      drawer: isNarrow
+          ? Drawer(
+        child: _buildSidebar(onClose: () => Navigator.of(context).pop()),
+      )
+          : null,
+      body: Column(
+        children: [
+          // Always show your custom Navbar
+          const Navbar(),
+
+          // "Secondary app bar" inside the body for both desktop and mobile
+          if (isNarrow)
+            Container(
+              color: AppColors.adminBar, // customize your AppBar color
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              height: 56,
+              child: Row(
+                children: [
+                  if (isNarrow)
+                    Builder(
+                      builder: (context) => IconButton(
+                        icon: const Icon(Icons.tune, color: Colors.white),
+                        onPressed: () => Scaffold.of(context).openDrawer(),
+                      ),
+                    ),
+                  const Text(
+                    '<Your Company Name Here> Dashboard',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+          // Main content + sidebar
+          Expanded(
+            child: Row(
+              children: [
+                if (!isNarrow)
+                  _buildSidebar(), // permanently show on desktop
+                Expanded(child: content),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
+
   }
+
 
   // Tag helpers
   Color _tagColor(String tag) {
