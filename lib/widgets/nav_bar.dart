@@ -230,6 +230,7 @@ class _NavbarState extends State<Navbar> {
 
   @override
   Widget build(BuildContext context) {
+    debugPrint('BUILD: nav bar');
     double topPadding = 20; // default
     if (!kIsWeb && Platform.isAndroid) {
       // Add system status bar height + extra spacing for Android

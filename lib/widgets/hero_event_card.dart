@@ -8,6 +8,7 @@ class HeroEventCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    debugPrint('BUILD: hero event card');
     final screenWidth = MediaQuery.of(context).size.width;
     final textAreaWidth = screenWidth * 0.8; // ⬅️ Slightly wider than before
 

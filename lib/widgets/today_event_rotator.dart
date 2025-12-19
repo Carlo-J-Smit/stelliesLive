@@ -70,6 +70,7 @@ class _TodayEventRotatorState extends State<TodayEventRotator> {
 
   @override
   Widget build(BuildContext context) {
+    debugPrint('BUILD: Today event rotator');
     if (widget.events.isEmpty) return const SizedBox();
 
     return LayoutBuilder(

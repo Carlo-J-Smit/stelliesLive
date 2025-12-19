@@ -40,6 +40,7 @@ class _EventCardState extends State<EventCard> {
 
   @override
   Widget build(BuildContext context) {
+    debugPrint('BUILD: Eventcard');
     final event = widget.event;
 
     // Determine which image to show: picked (preview) > network image

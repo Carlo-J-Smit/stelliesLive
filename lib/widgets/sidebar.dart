@@ -33,6 +33,7 @@ class Sidebar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    debugPrint('BUILD: sidebar');
     final isNarrow = MediaQuery.of(context).size.width < 700;
 
     return SafeArea(

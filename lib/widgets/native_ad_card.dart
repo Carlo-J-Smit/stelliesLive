@@ -51,6 +51,7 @@ class _NativeAdCardState extends State<NativeAdCard> {
 
   @override
   Widget build(BuildContext context) {
+    debugPrint('BUILD: native ad card');
     if (_isAdFailed) {
       return const AdCard(sponsorUrl: 'https://coff.ee/stellieslive');
     }

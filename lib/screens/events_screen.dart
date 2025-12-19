@@ -5,10 +5,9 @@ import '../widgets/event_card.dart';
 import '../widgets/nav_bar.dart';
 import '../widgets/sidebar.dart';
 import '../widgets/today_event_rotator.dart';
-import '../widgets/native_ad_card.dart';
-import '../widgets/trending_ad_rotator.dart';
+// import '../widgets/trending_ad_rotator.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:google_mobile_ads/google_mobile_ads.dart';
+//import 'package:google_mobile_ads/google_mobile_ads.dart';
 import '../constants/colors.dart';
 import 'dart:io' show Platform;
 import 'package:url_launcher/url_launcher.dart';
@@ -37,9 +36,9 @@ class _EventsScreenState extends State<EventsScreen> {
             Theme.of(context).platform == TargetPlatform.iOS);
   }
 
-  final List<NativeAd> _loadedAds = [];
-  final int _adFrequency = 4;
-  final int _maxAds = 10;
+  // final List<NativeAd> _loadedAds = [];
+  // final int _adFrequency = 4;
+  // final int _maxAds = 10;
 
   @override
   void initState() {
@@ -50,33 +49,33 @@ class _EventsScreenState extends State<EventsScreen> {
       return events;
     });
     if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
-      preloadNativeAds();
+      // preloadNativeAds();
     }
   }
 
-  void preloadNativeAds() {
-    for (int i = 0; i < _maxAds; i++) {
-      final nativeAd = NativeAd(
-        adUnitId: 'ca-app-pub-3940256099942544/2247696110',
-        factoryId: 'listTile',
-        request: const AdRequest(),
-        listener: NativeAdListener(
-          onAdLoaded: (ad) {
-            setState(() {
-              _loadedAds.add(ad as NativeAd);
-            });
-            debugPrint('✅ Preloaded ad $i loaded');
-          },
-          onAdFailedToLoad: (ad, error) {
-            ad.dispose();
-            debugPrint('❌ Preloaded ad $i failed: $error');
-          },
-        ),
-      );
-
-      nativeAd.load();
-    }
-  }
+  // void preloadNativeAds() {
+  //   for (int i = 0; i < _maxAds; i++) {
+  //     final nativeAd = NativeAd(
+  //       adUnitId: 'ca-app-pub-3940256099942544/2247696110',
+  //       factoryId: 'listTile',
+  //       request: const AdRequest(),
+  //       listener: NativeAdListener(
+  //         onAdLoaded: (ad) {
+  //           setState(() {
+  //             _loadedAds.add(ad as NativeAd);
+  //           });
+  //           debugPrint('✅ Preloaded ad $i loaded');
+  //         },
+  //         onAdFailedToLoad: (ad, error) {
+  //           ad.dispose();
+  //           debugPrint('❌ Preloaded ad $i failed: $error');
+  //         },
+  //       ),
+  //     );
+  //
+  //     nativeAd.load();
+  //   }
+  // }
 
   void _applyFilters() {
     setState(() {
@@ -102,9 +101,9 @@ class _EventsScreenState extends State<EventsScreen> {
   @override
   void dispose() {
     _searchController.dispose();
-    for (final ad in _loadedAds) {
-      ad.dispose();
-    }
+    // for (final ad in _loadedAds) {
+    //   ad.dispose();
+    // }
     super.dispose();
   }
 
@@ -116,47 +115,48 @@ class _EventsScreenState extends State<EventsScreen> {
     for (int i = 0; eventIndex < _filteredEvents.length; i++) {
       // Every nth item is an ad
       if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
-        if (i != 0 && i % _adFrequency == 0 && adIndex < _loadedAds.length) {
-          widgets.add(
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                border: Border.all(color: Colors.grey.shade200),
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Colors.black12,
-                    blurRadius: 6,
-                    offset: Offset(0, 2),
-                  ),
-                ],
-              ),
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Sponsored',
-                    style: TextStyle(
-                      color: AppColors.primaryRed,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  SizedBox(
-                    height: 100,
-                    child: AdWidget(ad: _loadedAds[adIndex]),
-                  ),
-                ],
-              ),
-            ),
-          );
-          adIndex++;
+        // if (i != 0 && i % _adFrequency == 0 && adIndex < _loadedAds.length) {
+        //   widgets.add(
+        //     Container(
+        //       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        //       decoration: BoxDecoration(
+        //         color: Colors.white,
+        //         border: Border.all(color: Colors.grey.shade200),
+        //         borderRadius: BorderRadius.circular(16),
+        //         boxShadow: const [
+        //           BoxShadow(
+        //             color: Colors.black12,
+        //             blurRadius: 6,
+        //             offset: Offset(0, 2),
+        //           ),
+        //         ],
+        //       ),
+        //       padding: const EdgeInsets.all(12),
+        //       child: Column(
+        //         crossAxisAlignment: CrossAxisAlignment.start,
+        //         children: [
+        //           const Text(
+        //             'Sponsored',
+        //             style: TextStyle(
+        //               color: AppColors.primaryRed,
+        //               fontWeight: FontWeight.bold,
+        //               fontSize: 12,
+        //               letterSpacing: 0.5,
+        //             ),
+        //           ),
+        //           const SizedBox(height: 8),
+        //           SizedBox(
+        //             height: 100,
+        //             child: AdWidget(ad: _loadedAds[adIndex]),
+        //           ),
+        //         ],
+        //       ),
+        //     ),
+        //   );
+        //   adIndex++;
 
-        } else if (eventIndex < _filteredEvents.length) {
+        // } else if (eventIndex < _filteredEvents.length) {
+        if (eventIndex < _filteredEvents.length) {
           widgets.add(EventCard(event: _filteredEvents[eventIndex]));
           eventIndex++;
         }
@@ -171,6 +171,7 @@ class _EventsScreenState extends State<EventsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    debugPrint('BUILD: EventsScreen');
     return LayoutBuilder(
       builder: (context, constraints) {
         final isNarrow = constraints.maxWidth < 700;
@@ -275,10 +276,10 @@ class _EventsScreenState extends State<EventsScreen> {
                                       : const EdgeInsets.all(16),
                               children: [
                                 if (todayEvents.isNotEmpty)
-                                  TodayEventRotator(events: todayEvents)
-                                else if (!kIsWeb &&
-                                    (Platform.isAndroid || Platform.isIOS))
-                                  const TrendingAdRotator(),
+                                  TodayEventRotator(events: todayEvents),
+                                // else if (!kIsWeb &&
+                                //     (Platform.isAndroid || Platform.isIOS))
+                                //   const TrendingAdRotator(),
 
                                 // else
                                 //   const Padding(

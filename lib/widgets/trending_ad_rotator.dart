@@ -38,6 +38,7 @@ class _TrendingAdRotatorState extends State<TrendingAdRotator> {
 
   @override
   Widget build(BuildContext context) {
+    debugPrint('BUILD: trending _ad_rotator');
     final ads = _buildAdCards();
 
     return Padding(

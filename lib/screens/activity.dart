@@ -12,7 +12,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../widgets/native_ad_banner.dart';
+// import '../widgets/native_ad_banner.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:io' show Platform;
 import '../widgets/event_markers.dart';
@@ -92,7 +92,7 @@ class _ActivityScreenState extends State<ActivityScreen> {
       await _initActivity();
     });
 
-    _subscribeToClusterUpdates();
+    // _subscribeToClusterUpdates();
   }
 
   Future<Marker> createEventMarker(Event event) async {
@@ -846,6 +846,7 @@ class _ActivityScreenState extends State<ActivityScreen> {
 
   @override
   Widget build(BuildContext context) {
+    debugPrint('BUILD: Activity Screen 1');
     return Scaffold(
       body: Column(
         children: [
@@ -1016,24 +1017,24 @@ class _ActivityScreenState extends State<ActivityScreen> {
 
                         _buildLegend(),
 
-                        // Sticky Ad Banner at the bottom
-                        if (!kIsWeb && (Platform.isAndroid || Platform.isIOS))
-                          Positioned(
-                            left: 0,
-                            right: 0,
-                            bottom: 0,
-                            child: SafeArea(
-                              top: false,
-                              child: NativeAdBanner(
-                                onVisibilityChanged: (visible) {
-                                  final safeBottom = MediaQuery.of(context).padding.bottom;
-                                  setState(() {
-                                    _bottomMapPadding = visible ? (safeBottom) : safeBottom;
-                                  });
-                                },
-                              ),
-                            ),
-                          ),
+                        // // Sticky Ad Banner at the bottom
+                        // if (!kIsWeb && (Platform.isAndroid || Platform.isIOS))
+                        //   Positioned(
+                        //     left: 0,
+                        //     right: 0,
+                        //     bottom: 0,
+                        //     child: SafeArea(
+                        //       top: false,
+                        //       child: NativeAdBanner(
+                        //         onVisibilityChanged: (visible) {
+                        //           final safeBottom = MediaQuery.of(context).padding.bottom;
+                        //           setState(() {
+                        //             _bottomMapPadding = visible ? (safeBottom) : safeBottom;
+                        //           });
+                        //         },
+                        //       ),
+                        //     ),
+                        //   ),
 
                         // _buildNotificationBanner(),
                         // Positioned(
@@ -1068,6 +1069,7 @@ class _LegendItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    debugPrint('BUILD: Activity Screen 2');
     return Row(
       children: [
         Container(width: 14, height: 14, color: color),
@@ -1097,6 +1099,7 @@ class _MapCircleButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    debugPrint('BUILD: Activity Screen 3');
     return Opacity(
       opacity: 0.9, // Adjust to your desired transparency
       child: Material(

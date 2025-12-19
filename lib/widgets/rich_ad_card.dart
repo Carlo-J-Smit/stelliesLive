@@ -46,6 +46,7 @@ class _HeroNativeAdCardState extends State<HeroNativeAdCard> {
 
   @override
   Widget build(BuildContext context) {
+    debugPrint('BUILD: rich ad card');
     if (_isFailed) return const SizedBox.shrink();
     if (!_isLoaded) return const SizedBox(height: 220); // Placeholder space
 

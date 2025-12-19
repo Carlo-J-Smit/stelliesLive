@@ -61,6 +61,7 @@ class _EventFeedbackDialogState extends State<EventFeedbackDialog> {
 
   @override
   Widget build(BuildContext context) {
+    debugPrint('BUILD: event_marker 1');
     final screenWidth = MediaQuery.of(context).size.width;
     final minCardWidth = 600.0;
     final maxCardWidth = screenWidth * 0.9;
@@ -291,6 +292,7 @@ class _AnimatedFeedbackButtonState extends State<_AnimatedFeedbackButton>
 
   @override
   Widget build(BuildContext context) {
+    debugPrint('BUILD: Event marker 2');
     return GestureDetector(
       onTap:
           widget.onTap == null
@@ -355,6 +357,7 @@ class _LikeDislikeButtonState extends State<_LikeDislikeButton>
 
   @override
   Widget build(BuildContext context) {
+    debugPrint('BUILD: event marker 3');
     final bgColor = widget.disabled ? Colors.grey : widget.color;
     return MouseRegion(
       onEnter:

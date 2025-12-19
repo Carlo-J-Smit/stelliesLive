@@ -21,6 +21,7 @@ class AdCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    debugPrint('BUILD: ad_card');
     return GestureDetector(
       onTap: _launchAdLink,
       child: Stack(

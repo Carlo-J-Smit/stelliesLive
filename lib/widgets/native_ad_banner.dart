@@ -150,6 +150,7 @@ class _NativeAdBannerState extends State<NativeAdBanner>
 
   @override
   Widget build(BuildContext context) {
+    debugPrint('BUILD: native_ad_banner');
     if (_adWidgets.isEmpty || _dismissed) return const SizedBox.shrink();
 
     final currentAd = _adWidgets[_currentIndex];

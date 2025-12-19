@@ -169,6 +169,7 @@ class _AdminPageState extends State<AdminPage> {
 
   @override
   Widget build(BuildContext context) {
+    debugPrint('BUILD: admin page 1');
     if (user == null) return const Center(child: Text("Login required."));
     if (user!.email != 'admin@gmail.com')
       return const Center(child: Text("Admin access only."));
@@ -1177,6 +1178,7 @@ class _MapPickerDialogState extends State<_MapPickerDialog> {
 
   @override
   Widget build(BuildContext context) {
+    debugPrint('BUILD: admin page 2');
     return FutureBuilder<Position>(
       future: Geolocator.getCurrentPosition(),
       builder: (context, snapshot) {

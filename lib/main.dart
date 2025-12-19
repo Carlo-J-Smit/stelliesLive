@@ -47,7 +47,7 @@ void main() async {
       //await MessagingService().init();
 
 
-      const useEmulator = false; // <-- toggle ON/OFF
+      const useEmulator = true; // <-- toggle ON/OFF
 
       final emulatorHost = kIsWeb ? 'localhost' : '10.0.2.2';
 
