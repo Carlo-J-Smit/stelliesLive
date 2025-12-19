@@ -6,6 +6,7 @@ import '../screens/activity.dart';
 import '../screens/events_screen.dart';
 import '../screens/auth_screen.dart';
 import '../screens/admin_page.dart';
+import '../screens/admin_dashboard_page.dart';
 import 'dart:async';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:io' show Platform;
@@ -124,6 +125,12 @@ class _NavbarState extends State<Navbar> {
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(builder: (_) => const EventsScreen()),
+          );
+        }),
+        _navButton(context, 'dash', () {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const AdminDashboardPage()),
           );
         }),
         if (_user == null)
