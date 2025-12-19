@@ -19,8 +19,11 @@ import 'dart:io' show File; // only for mobile
 import '../models/event.dart';
 import '../widgets/event_card.dart';
 import 'dart:math';
+import 'package:provider/provider.dart';
+import '../providers/event_provider.dart';
 
 class AdminPage extends StatefulWidget {
+
   const AdminPage({super.key});
 
   @override
@@ -57,7 +60,8 @@ class _AdminPageState extends State<AdminPage> {
   String? _iconUrl;
   bool _iconUploaded = false;
 
-  List<DocumentSnapshot> _searchResults = [];
+  List<Event> _searchResults = [];
+
   DocumentSnapshot? _selectedEvent;
 
   DocumentSnapshot? _lastDocument;
@@ -69,6 +73,19 @@ class _AdminPageState extends State<AdminPage> {
   String _formatPrice(double price) {
     final formatter = NumberFormat.currency(symbol: 'R', decimalDigits: 0);
     return formatter.format(price);
+  }
+
+  late List<Event> _allEvents;
+
+  @override
+  void initState() {
+    super.initState();
+
+    // Access events from provider
+    final provider = Provider.of<EventProvider>(context, listen: false);
+    _allEvents = provider.allEvents;
+
+    _searchEvents();
   }
 
   Widget _buildImagePreview() {
@@ -195,11 +212,11 @@ class _AdminPageState extends State<AdminPage> {
 
               const SizedBox(height: 16),
               ..._searchResults.map(
-                (doc) => ListTile(
+                    (event) => ListTile(
                   title: Text.rich(
                     TextSpan(
                       children: highlightMatch(
-                        doc['title'],
+                        event.title ?? '',
                         _searchController.text,
                       ),
                     ),
@@ -207,7 +224,7 @@ class _AdminPageState extends State<AdminPage> {
                   subtitle: Text.rich(
                     TextSpan(
                       children: highlightMatch(
-                        doc['venue'],
+                        event.venue ?? '',
                         _searchController.text,
                       ),
                     ),
@@ -236,20 +253,15 @@ class _AdminPageState extends State<AdminPage> {
                     });
 
                     // Then load the event
-                    _loadEvent(doc);
+                    _loadEvent(event);
                   },
                   trailing: IconButton(
                     icon: const Icon(Icons.delete, color: Colors.red),
-                    onPressed: () => _deleteEvent(doc),
+                    onPressed: () => _deleteEvent(event),
                   ),
                 ),
               ),
 
-              if (_hasMore && !_isLoadingMore)
-                TextButton(
-                  onPressed: _loadMoreResults,
-                  child: const Text('Load More'),
-                ),
               const Divider(height: 32),
 
               const Text(
@@ -817,118 +829,64 @@ class _AdminPageState extends State<AdminPage> {
     }
   }
 
-  void _searchEvents() async {
+  void _searchEvents() {
     final query = _searchController.text.trim().toLowerCase();
-    if (query.isEmpty) return;
 
     setState(() {
-      _searchResults.clear();
-      _lastDocument = null;
-      _hasMore = true;
-    });
+      if (query.isEmpty) {
+        _searchResults = [];
+      } else {
+        _searchResults = _allEvents.where((event) {
+          return (event.title.toLowerCase().contains(query) ||
+              event.venue.toLowerCase().contains(query));
+        }).toList();
 
-    final titleQuery =
-        FirebaseFirestore.instance
-            .collection('events')
-            .where('titleLower', isGreaterThanOrEqualTo: query)
-            .where('titleLower', isLessThanOrEqualTo: query + '\uf8ff')
-            .limit(10)
-            .get();
+        _searchResults.sort((a, b) => (a.title ?? '').compareTo(b.title ?? ''));
+      }
 
-    final venueQuery =
-        FirebaseFirestore.instance
-            .collection('events')
-            .where('venueLower', isGreaterThanOrEqualTo: query)
-            .where('venueLower', isLessThanOrEqualTo: query + '\uf8ff')
-            .limit(10)
-            .get();
-
-    final results = await Future.wait([titleQuery, venueQuery]);
-
-    final combined =
-        <DocumentSnapshot>{}
-          ..addAll(results[0].docs)
-          ..addAll(results[1].docs);
-
-    final sortedResults =
-        combined.toList()
-          ..sort((a, b) => (a['title'] ?? '').compareTo(b['title'] ?? ''));
-
-    setState(() {
-      _searchResults = sortedResults;
-      _hasMore = false; // pagination for now skipped
+      _hasMore = false;
     });
   }
 
-  void _loadMoreResults() async {
-    if (!_hasMore || _isLoadingMore) return;
 
-    setState(() => _isLoadingMore = true);
 
-    final query = _searchController.text.trim();
-    if (_lastDocument == null) {
-      print('[ADMIN] _lastDocument is null → skipping load more');
-      return; // ⛔️ do nothing if no last document
-    }
-    final results =
-        await FirebaseFirestore.instance
-            .collection('events')
-            .where('titleLower', isGreaterThanOrEqualTo: query)
-            .where('titleLower', isLessThanOrEqualTo: query + '\uf8ff')
-            .startAfterDocument(_lastDocument!) // ✅ safe now
-            .limit(10)
-            .get();
-
-    if (results.docs.isNotEmpty) {
-      _lastDocument = results.docs.last;
-    }
-
+  void _loadEvent(Event event) {
     setState(() {
-      _searchResults.addAll(results.docs);
-      _hasMore = results.docs.length == 10;
-      _isLoadingMore = false;
-    });
-  }
+      _selectedEvent = null; // optional, or store the Event if you prefer
+      _titleController.text = event.title ?? '';
+      _venueController.text = event.venue ?? '';
+      _categoryController.text = event.category ?? '';
+      _descriptionController.text = event.description ?? '';
+      _imageUrl = event.imageUrl;
+      _iconUrl = event.iconUrl;
+      _priceController.text = (event.price ?? 0).toStringAsFixed(2);
+      _selectedTag = event.tag;
 
-  void _loadEvent(DocumentSnapshot doc) {
-    setState(() {
-      _selectedEvent = doc;
-      _titleController.text = doc['title'] ?? '';
-      _venueController.text = doc['venue'] ?? '';
-      _categoryController.text = doc['category'] ?? '';
-      _descriptionController.text = doc['description'] ?? '';
-      _imageUrl = doc['imageUrl'];
-      _iconUrl = doc['iconUrl'];
-      _priceController.text = (doc['price'] as num?)?.toStringAsFixed(2) ?? '';
-      _selectedTag = doc['tag'];
-
-      // ✅ Check if "location" exists before using it
-      if (doc.data() is Map && (doc.data() as Map).containsKey('location')) {
-        final location = doc['location'];
-        _locationLat = location['lat'];
-        _locationLng = location['lng'];
-        _locationAddress = location['address'];
+      // Location
+      if (event.lat != null && event.lng != null) {
+        _locationLat = event.lat;
+        _locationLng = event.lng;
+        _locationAddress = null; // or keep a stored address if you have one
       } else {
         _locationLat = null;
         _locationLng = null;
         _locationAddress = null;
       }
 
-      final isRecurring = doc['recurring'] == true;
-      _isRecurring = isRecurring;
 
-      if (isRecurring) {
-        _selectedDayOfWeek = doc['dayOfWeek'];
-        //_selectedDateTime = null;
+      _isRecurring = event.recurring ?? false;
+
+      if (_isRecurring) {
+        _selectedDayOfWeek = event.dayOfWeek;
+        //_selectedDateTime = null; // only time matters for recurring
       } else {
         _selectedDayOfWeek = null;
       }
-      _selectedDateTime =
-          doc['dateTime'] != null
-              ? (doc['dateTime'] as Timestamp).toDate()
-              : null;
+
+      _selectedDateTime = event.dateTime;
     });
   }
+
 
   Future<void> _submitEvent() async {
     setState(() => _isSubmitting = true);
@@ -1138,43 +1096,44 @@ class _AdminPageState extends State<AdminPage> {
     }
   }
 
-  void _deleteEvent(DocumentSnapshot doc) async {
+  void _deleteEvent(Event event) async {
     final confirm = await showDialog<bool>(
       context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text("Delete Event"),
-            content: Text("Are you sure you want to delete '${doc['title']}'?"),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text("Cancel"),
-              ),
-              TextButton(
-                onPressed: () => Navigator.pop(context, true),
-                child: const Text(
-                  "Delete",
-                  style: TextStyle(color: Colors.red),
-                ),
-              ),
-            ],
+      builder: (context) => AlertDialog(
+        title: const Text("Delete Event"),
+        content: Text("Are you sure you want to delete '${event.title}'?"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("Cancel"),
           ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text(
+              "Delete",
+              style: TextStyle(color: Colors.red),
+            ),
+          ),
+        ],
+      ),
     );
 
     if (confirm == true) {
       await FirebaseFirestore.instance
           .collection('events')
-          .doc(doc.id)
+          .doc(event.id)
           .delete();
+
       setState(() {
-        _searchResults.remove(doc);
-        if (_selectedEvent?.id == doc.id) {
+        _searchResults.remove(event);
+        if (_selectedEvent?.id == event.id) {
           _selectedEvent = null;
         }
       });
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Deleted '${doc['title']}'")));
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Deleted '${event.title}'")),
+      );
     }
   }
 }

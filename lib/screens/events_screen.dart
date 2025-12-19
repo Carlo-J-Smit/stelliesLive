@@ -11,6 +11,8 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import '../constants/colors.dart';
 import 'dart:io' show Platform;
 import 'package:url_launcher/url_launcher.dart';
+import 'package:provider/provider.dart';
+import '../providers/event_provider.dart';
 
 
 class EventsScreen extends StatefulWidget {
@@ -44,15 +46,25 @@ class _EventsScreenState extends State<EventsScreen> {
   @override
   void initState() {
     super.initState();
+
     _eventsFuture = _firestoreService.getEvents().then((events) {
+      // Store events in provider
+      Provider.of<EventProvider>(context, listen: false).setEvents(events);
+
+      // Also store locally in this page
       _allEvents = events;
+
+      // Apply any local filters / search
       _applyFilters();
+
       return events;
     });
+
     if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
       // preloadNativeAds();
     }
   }
+
 
   // void preloadNativeAds() {
   //   for (int i = 0; i < _maxAds; i++) {

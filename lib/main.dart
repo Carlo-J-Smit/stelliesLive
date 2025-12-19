@@ -22,6 +22,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:stellieslive/services/messaging_service.dart';
 import 'firebase_options.dart'; // If you have generated firebase options
+import 'package:provider/provider.dart';
+import 'providers/event_provider.dart';
 
 Future<void> _requestNotificationPermission() async {
   //
@@ -69,7 +71,13 @@ void main() async {
       // ✅ Initialize Firebase Performance
       FirebasePerformance performance = FirebasePerformance.instance;
 
-            runApp(const MyApp());
+      runApp(
+        MultiProvider(
+        providers: [
+          ChangeNotifierProvider(create: (_) => EventProvider()),
+        ],
+        child: const MyApp(),
+      ),);
     },
     (error, stack) {
       print('Uncaught error: $error');
