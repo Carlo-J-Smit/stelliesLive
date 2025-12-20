@@ -878,6 +878,7 @@ class _EventFormPageState extends State<EventFormPage> {
             .add(data);
       }
 
+
       if (_pickedImage != null || _pickedBytes != null) {
         await _uploadEventImage(eventRef.id, _titleController.text.trim());
         await eventRef.update({'imageUrl': _imageUrl});
