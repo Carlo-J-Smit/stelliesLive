@@ -227,12 +227,13 @@ class _NavbarState extends State<Navbar> {
                   MaterialPageRoute(builder: (_) => const AuthScreen()),
                 );
                 break;
-              case 'Business Management':
+              case 'BusinessManagement':
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (_) => AdminDashboardPage(businessName: _business ?? '')),
                 );
                 break;
+
               case 'Logout':
                 _logout();
                 break;
@@ -254,7 +255,7 @@ class _NavbarState extends State<Navbar> {
             if (_user == null)
               const PopupMenuItem(value: 'Login', child: Text('Business Login')),
             if (isBusiness)
-              const PopupMenuItem(value: 'Admin', child: Text('Business Management')),
+              const PopupMenuItem(value: 'BusinessManagement', child: Text('Business Management')),
             if (_user != null)
               const PopupMenuItem(value: 'Logout', child: Text('Logout')),
             if (isAdmin)

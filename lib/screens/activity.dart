@@ -105,7 +105,7 @@ class _ActivityScreenState extends State<ActivityScreen> {
       position: LatLng(event.lat!, event.lng!),
       onTap: () {
         // Show the EventCard dialog
-        print(event.busynessLevel);
+       debugPrint(event.busynessLevel);
         _showEventDialog(event);
 
         // Optional: move camera to marker

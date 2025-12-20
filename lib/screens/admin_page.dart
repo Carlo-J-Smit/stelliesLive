@@ -646,9 +646,9 @@ class _AdminPageState extends State<AdminPage> {
   }
 
   // Future<void> pickImage() async {
-  //   print('[pickImage] called');
+  //  debugPrint('[pickImage] called');
   //   if (kIsWeb) {
-  //     print('[pickImage] running on Web');
+  //    debugPrint('[pickImage] running on Web');
   //
   //     final html.FileUploadInputElement uploadInput = html.FileUploadInputElement();
   //     uploadInput.accept = 'image/*';
@@ -657,11 +657,11 @@ class _AdminPageState extends State<AdminPage> {
   //     uploadInput.onChange.listen((e) async {
   //       final files = uploadInput.files;
   //       if (files == null || files.isEmpty) {
-  //         print('[pickImage] No files selected');
+  //        debugPrint('[pickImage] No files selected');
   //         return;
   //       }
   //
-  //       print('[pickImage] File selected: ${files[0].name}');
+  //      debugPrint('[pickImage] File selected: ${files[0].name}');
   //
   //       final reader = html.FileReader();
   //       reader.readAsArrayBuffer(files[0]);
@@ -671,12 +671,12 @@ class _AdminPageState extends State<AdminPage> {
   //           _imageWebFileData = reader.result as Uint8List;
   //           _imageFile = null;
   //         });
-  //         print('[pickImage] _imageWebFileData length: ${_imageWebFileData?.length}');
+  //        debugPrint('[pickImage] _imageWebFileData length: ${_imageWebFileData?.length}');
   //       });
   //     });
   //   } else {
   //     // MOBILE
-  //     print('[pickImage] running on Mobile');
+  //    debugPrint('[pickImage] running on Mobile');
   //
   //     try {
   //       final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
@@ -685,12 +685,12 @@ class _AdminPageState extends State<AdminPage> {
   //           _imageFile = File(picked.path);
   //           _imageWebFileData = null;
   //         });
-  //         print('[pickImage] File selected: ${picked.path}');
+  //        debugPrint('[pickImage] File selected: ${picked.path}');
   //       } else {
-  //         print('[pickImage] No file picked');
+  //        debugPrint('[pickImage] No file picked');
   //       }
   //     } catch (e) {
-  //       print('[pickImage] Error picking image: $e');
+  //      debugPrint('[pickImage] Error picking image: $e');
   //     }
   //   }
   // }

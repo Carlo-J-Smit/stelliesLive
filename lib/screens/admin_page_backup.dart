@@ -161,7 +161,7 @@ class _AdminPageState extends State<AdminPage> {
 
     final query = _searchController.text.trim();
     if (_lastDocument == null) {
-      print('[ADMIN] _lastDocument is null → skipping load more');
+     debugPrint('[ADMIN] _lastDocument is null → skipping load more');
       return; // ⛔️ do nothing if no last document
     }
     final results =

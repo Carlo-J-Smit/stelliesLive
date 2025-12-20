@@ -18,6 +18,7 @@ import '../constants/colors.dart';
 import '../models/event.dart';
 import '../widgets/event_card.dart';
 import '../providers/event_provider.dart';
+
 class EventFormPage extends StatefulWidget {
   final Event? event;
   final EventProvider provider; // <-- pass provider
@@ -33,7 +34,6 @@ class EventFormPage extends StatefulWidget {
   @override
   State<EventFormPage> createState() => _EventFormPageState();
 }
-
 
 class _MapPickerDialog extends StatefulWidget {
   @override
@@ -84,7 +84,7 @@ class _MapPickerDialogState extends State<_MapPickerDialog> {
       if (permission == LocationPermission.deniedForever) {
         setState(() {
           _errorMessage =
-          "Location permissions are permanently denied. You can enable them in settings.";
+              "Location permissions are permanently denied. You can enable them in settings.";
           _currentLocation = _fallbackLocation;
           _loading = false;
         });
@@ -123,49 +123,56 @@ class _MapPickerDialogState extends State<_MapPickerDialog> {
       content: SizedBox(
         width: 400,
         height: 400,
-        child: _loading
-            ? const Center(child: CircularProgressIndicator())
-            : Column(
-          children: [
-            Expanded(
-              child: GoogleMap(
-                initialCameraPosition: CameraPosition(
-                  target: _currentLocation!,
-                  zoom: 15,
-                ),
-                onMapCreated: (controller) {
-                  _mapController = controller;
-                  // Animate to current location if it's already set
-                  if (_currentLocation != null) {
-                    _mapController!.animateCamera(
-                      CameraUpdate.newCameraPosition(
-                        CameraPosition(target: _currentLocation!, zoom: 15),
+        child:
+            _loading
+                ? const Center(child: CircularProgressIndicator())
+                : Column(
+                  children: [
+                    Expanded(
+                      child: GoogleMap(
+                        initialCameraPosition: CameraPosition(
+                          target: _currentLocation!,
+                          zoom: 15,
+                        ),
+                        onMapCreated: (controller) {
+                          _mapController = controller;
+                          // Animate to current location if it's already set
+                          if (_currentLocation != null) {
+                            _mapController!.animateCamera(
+                              CameraUpdate.newCameraPosition(
+                                CameraPosition(
+                                  target: _currentLocation!,
+                                  zoom: 15,
+                                ),
+                              ),
+                            );
+                          }
+                        },
+                        onTap:
+                            (latLng) =>
+                                setState(() => _pickedLocation = latLng),
+                        markers:
+                            _pickedLocation != null
+                                ? {
+                                  Marker(
+                                    markerId: const MarkerId('picked'),
+                                    position: _pickedLocation!,
+                                  ),
+                                }
+                                : {},
                       ),
-                    );
-                  }
-                },
-                onTap: (latLng) => setState(() => _pickedLocation = latLng),
-                markers: _pickedLocation != null
-                    ? {
-                  Marker(
-                    markerId: const MarkerId('picked'),
-                    position: _pickedLocation!,
-                  ),
-                }
-                    : {},
-              ),
-            ),
-            if (_errorMessage != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 8.0),
-                child: Text(
-                  _errorMessage!,
-                  style: const TextStyle(color: Colors.red),
-                  textAlign: TextAlign.center,
+                    ),
+                    if (_errorMessage != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8.0),
+                        child: Text(
+                          _errorMessage!,
+                          style: const TextStyle(color: Colors.red),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                  ],
                 ),
-              ),
-          ],
-        ),
       ),
       actions: [
         TextButton(
@@ -173,9 +180,10 @@ class _MapPickerDialogState extends State<_MapPickerDialog> {
           child: const Text("Cancel"),
         ),
         ElevatedButton(
-          onPressed: _pickedLocation != null
-              ? () => Navigator.pop(context, _pickedLocation)
-              : null,
+          onPressed:
+              _pickedLocation != null
+                  ? () => Navigator.pop(context, _pickedLocation)
+                  : null,
           child: const Text("Select"),
         ),
       ],
@@ -256,7 +264,8 @@ class _EventFormPageState extends State<EventFormPage> {
         ),
 
         centerTitle: false,
-        toolbarHeight: 90, // Taller to accommodate big buttons
+        toolbarHeight: 90,
+        // Taller to accommodate big buttons
         backgroundColor: AppColors.textLight,
         actions: [
           Padding(
@@ -267,7 +276,13 @@ class _EventFormPageState extends State<EventFormPage> {
                   ElevatedButton.icon(
                     onPressed: _isSubmitting ? null : _deleteEvent,
                     icon: const Icon(Icons.delete, size: 28),
-                    label: const Text('Delete', style: TextStyle(fontSize: 18, color: AppColors.darkInteract)),
+                    label: const Text(
+                      'Delete',
+                      style: TextStyle(
+                        fontSize: 18,
+                        color: AppColors.darkInteract,
+                      ),
+                    ),
                     style: ElevatedButton.styleFrom(
                       //backgroundColor: AppColors.textLight,
                       padding: const EdgeInsets.symmetric(
@@ -285,7 +300,10 @@ class _EventFormPageState extends State<EventFormPage> {
                   icon: const Icon(Icons.save, size: 28),
                   label: Text(
                     isEdit ? 'Save' : 'Create',
-                    style: const TextStyle(fontSize: 18, color: AppColors.darkInteract),
+                    style: const TextStyle(
+                      fontSize: 18,
+                      color: AppColors.darkInteract,
+                    ),
                   ),
                   style: ElevatedButton.styleFrom(
                     //backgroundColor: AppColors.textLight,
@@ -304,62 +322,87 @@ class _EventFormPageState extends State<EventFormPage> {
         ],
       ),
 
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          children: [
-            isWide
-                ? Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        children: [
-                          _section(
-                            title: "Basic Information",
-                            child: _basicInfo(),
+      body: Stack(
+        children: [
+          SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              children: [
+                isWide
+                    ? Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            children: [
+                              _section(
+                                title: "Basic Information",
+                                child: _basicInfo(),
+                              ),
+                              _section(
+                                title: "Description",
+                                child: _description(),
+                              ),
+                              _section(
+                                title: "Pricing & Tags",
+                                child: _pricingAndTags(),
+                              ),
+                            ],
                           ),
-                          _section(title: "Description", child: _description()),
-                          _section(
-                            title: "Pricing & Tags",
-                            child: _pricingAndTags(),
+                        ),
+                        const SizedBox(width: 24),
+                        Expanded(
+                          child: Column(
+                            children: [
+                              _section(
+                                title: "Date & Recurrence",
+                                child: _dateSection(),
+                              ),
+                              _section(
+                                title: "Location",
+                                child: _locationSection(),
+                              ),
+                              _section(title: "Media", child: _mediaSection()),
+                            ],
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
+                    )
+                    : Column(
+                      children: [
+                        _section(
+                          title: "Basic Information",
+                          child: _basicInfo(),
+                        ),
+                        _section(title: "Description", child: _description()),
+                        _section(
+                          title: "Pricing & Tags",
+                          child: _pricingAndTags(),
+                        ),
+                        _section(
+                          title: "Date & Recurrence",
+                          child: _dateSection(),
+                        ),
+                        _section(title: "Location", child: _locationSection()),
+                        _section(title: "Media", child: _mediaSection()),
+                      ],
                     ),
-                    const SizedBox(width: 24),
-                    Expanded(
-                      child: Column(
-                        children: [
-                          _section(
-                            title: "Date & Recurrence",
-                            child: _dateSection(),
-                          ),
-                          _section(
-                            title: "Location",
-                            child: _locationSection(),
-                          ),
-                          _section(title: "Media", child: _mediaSection()),
-                        ],
-                      ),
-                    ),
-                  ],
-                )
-                : Column(
-                  children: [
-                    _section(title: "Basic Information", child: _basicInfo()),
-                    _section(title: "Description", child: _description()),
-                    _section(title: "Pricing & Tags", child: _pricingAndTags()),
-                    _section(title: "Date & Recurrence", child: _dateSection()),
-                    _section(title: "Location", child: _locationSection()),
-                    _section(title: "Media", child: _mediaSection()),
-                  ],
+                const SizedBox(height: 10),
+                _actionButtons(), // <-- Buttons moved here
+                const SizedBox(height: 32),
+              ],
+            ),
+          ),
+          if (_isSubmitting)
+            Container(
+              color: Colors.black.withOpacity(0.4), // semi-transparent overlay
+              child: const Center(
+                child: CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                 ),
-            const SizedBox(height: 10),
-            _actionButtons(), // <-- Buttons moved here
-            const SizedBox(height: 32),
-          ],
-        ),
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -377,10 +420,7 @@ class _EventFormPageState extends State<EventFormPage> {
           ),
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.textLight,
-            padding: const EdgeInsets.symmetric(
-              horizontal: 20,
-              vertical: 12,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
             ),
@@ -389,7 +429,6 @@ class _EventFormPageState extends State<EventFormPage> {
       ],
     );
   }
-
 
   Widget _section({required String title, required Widget child}) {
     return Card(
@@ -544,7 +583,8 @@ class _EventFormPageState extends State<EventFormPage> {
       if (_locationAddress != null && _locationAddress!.isNotEmpty) {
         locationText = _locationAddress!;
       } else {
-        locationText = 'Lat: ${_locationLat!.toStringAsFixed(5)}, '
+        locationText =
+            'Lat: ${_locationLat!.toStringAsFixed(5)}, '
             'Lng: ${_locationLng!.toStringAsFixed(5)}';
       }
     } else {
@@ -564,8 +604,6 @@ class _EventFormPageState extends State<EventFormPage> {
       ],
     );
   }
-
-
 
   Widget _mediaSection() {
     return Column(
@@ -714,7 +752,6 @@ class _EventFormPageState extends State<EventFormPage> {
     }
   }
 
-
   Future<void> _submitEvent() async {
     setState(() {
       _isSubmitting = true;
@@ -722,43 +759,20 @@ class _EventFormPageState extends State<EventFormPage> {
     });
 
     try {
-      // ---------------- VALIDATIONS ----------------
-      if (_titleController.text.trim().isEmpty) {
-        _showError('Title is required');
-        return;
-      }
-      if (_venueController.text.trim().isEmpty) {
-        _showError('Venue is required');
-        return;
-      }
-      if (_categoryController.text.trim().isEmpty) {
-        _showError('Category is required');
-        return;
-      }
-      if (!_isRecurring && _selectedDateTime == null) {
-        _showError('Please select a date & time');
-        return;
-      }
-      if (_isRecurring && _selectedDayOfWeek == null) {
-        _showError('Please select a day of week');
-        return;
-      }
-      if (_priceController.text.trim().isEmpty ||
-          double.tryParse(_priceController.text.trim()) == null) {
-        _showError('Please enter a valid price');
-        return;
-      }
-      if (_locationLat == null || _locationLng == null) {
-        _showError('Please select a location');
-        return;
-      }
-
-      if (!_isRecurring && _selectedDateTime == null) {
-        throw Exception('Please select a date & time');
-      }
-      if (_isRecurring && _selectedDayOfWeek == null) {
-        throw Exception('Please select a day of week');
-      }
+      // --- Validations ---
+      if (_titleController.text.trim().isEmpty)
+        throw Exception('Title required');
+      if (_venueController.text.trim().isEmpty)
+        throw Exception('Venue required');
+      if (_categoryController.text.trim().isEmpty)
+        throw Exception('Category required');
+      if (!_isRecurring && _selectedDateTime == null)
+        throw Exception('Select date & time');
+      if (_isRecurring && _selectedDayOfWeek == null)
+        throw Exception('Select day of week');
+      if (_priceController.text.trim().isEmpty) throw Exception('Enter price');
+      if (_locationLat == null || _locationLng == null)
+        throw Exception('Select location');
 
       final previewData = {
         'title': _titleController.text.trim(),
@@ -784,10 +798,10 @@ class _EventFormPageState extends State<EventFormPage> {
         'tag': _selectedTag,
         'imageUrl': _imageUrl ?? '',
         'iconUrl': _iconUrl ?? '',
-        'busynessLevel': 'Quiet',
-        'likes': 0,
-        'dislikes': 0,
-        'business' : widget.businessName,
+        'busynessLevel': isEdit ? widget.event!.busynessLevel ?? 'Quiet' : 'Quiet',
+        'likes': isEdit ? widget.event!.likes ?? 0 : 0,
+        'dislikes': isEdit ? widget.event!.dislikes ?? 0 : 0,
+        'business': widget.businessName,
       };
 
       final confirmed = await showDialog<bool>(
@@ -797,24 +811,30 @@ class _EventFormPageState extends State<EventFormPage> {
           final maxCardWidth = min(screenWidth * 0.95, 800).toDouble();
 
           return AlertDialog(
-            backgroundColor: AppColors.white, // Change dialog background color
+            backgroundColor: AppColors.white,
+            // Change dialog background color
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(20), // Rounded corners
             ),
-            insetPadding: const EdgeInsets.all(16), // Controls padding from screen edges
+            insetPadding: const EdgeInsets.all(16),
+            // Controls padding from screen edges
             title: const Text(
               'Preview Event',
-              style: TextStyle(color: AppColors.primaryRed), // Change title text color
+              style: TextStyle(
+                color: AppColors.primaryRed,
+              ), // Change title text color
             ),
             content: ConstrainedBox(
-              constraints: BoxConstraints(
-                maxWidth: min(maxCardWidth, 800),
-              ),
+              constraints: BoxConstraints(maxWidth: min(maxCardWidth, 800)),
               child: SingleChildScrollView(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 1 ,vertical: 1 ), // Padding inside dialog
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 1,
+                    vertical: 1,
+                  ), // Padding inside dialog
                   child: SizedBox(
-                    width: max(screenWidth , maxCardWidth), // make EventCard wider
+                    width: max(screenWidth, maxCardWidth),
+                    // make EventCard wider
                     child: EventCard(
                       event: Event.fromMap('preview', previewData),
                       pickedBytes: _pickedBytes,
@@ -858,7 +878,6 @@ class _EventFormPageState extends State<EventFormPage> {
             .add(data);
       }
 
-
       if (_pickedImage != null || _pickedBytes != null) {
         await _uploadEventImage(eventRef.id, _titleController.text.trim());
         await eventRef.update({'imageUrl': _imageUrl});
@@ -871,14 +890,25 @@ class _EventFormPageState extends State<EventFormPage> {
 
       if (isEdit) {
         await eventRef.update(data);
-        widget.provider.updateEvent(widget.event!.id, data); // <-- update provider
+        widget.provider.updateEvent(widget.event!.id, data);
       } else {
-        final newDoc = await FirebaseFirestore.instance
-            .collection('events')
-            .add(data);
-        widget.provider.addEvent(Event.fromMap(newDoc.id, data)); // <-- add to provider
+        widget.provider.addEvent(
+          Event.fromMap(eventRef.id, data),
+        );
       }
 
+
+      // Success
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            isEdit
+                ? 'Event updated successfully!'
+                : 'Event created successfully!',
+          ),
+          backgroundColor: Colors.green,
+        ),
+      );
 
       Navigator.pop(context);
     } catch (e) {
@@ -930,17 +960,14 @@ class _EventFormPageState extends State<EventFormPage> {
 
   void _showError(String message) {
     final snackBar = SnackBar(
-      content: Text(
-        message,
-        style: const TextStyle(fontSize: 18),
-      ),
+      content: Text(message, style: const TextStyle(fontSize: 18)),
       backgroundColor: AppColors.primaryRed,
       behavior: SnackBarBehavior.floating,
-      margin: const EdgeInsets.fromLTRB(16, 50, 16, 0), // top margin = 50
-      padding: const EdgeInsets.all(20), // increase padding
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
+      margin: const EdgeInsets.fromLTRB(16, 50, 16, 0),
+      // top margin = 50
+      padding: const EdgeInsets.all(20),
+      // increase padding
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       duration: const Duration(seconds: 4),
     );
 

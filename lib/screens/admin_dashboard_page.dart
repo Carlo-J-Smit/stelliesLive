@@ -373,11 +373,11 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                         onPressed: () => Scaffold.of(context).openDrawer(),
                       ),
                     ),
-                  const Text(
-                    '<Your Company Name Here> Dashboard',
-                    style: TextStyle(
+                  Text(
+                    '${widget.businessName} Dashboard',
+                    style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 20,
+                      fontSize: 16,
                       fontWeight: FontWeight.bold,
                     ),
                   ),

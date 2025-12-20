@@ -24,12 +24,12 @@ import 'package:stellieslive/services/messaging_service.dart';
 import 'firebase_options.dart'; // If you have generated firebase options
 import 'package:provider/provider.dart';
 import 'providers/event_provider.dart';
+import 'package:flutter/foundation.dart';
 
 Future<void> _requestNotificationPermission() async {
   //
 }
 
-void log(String message) => print(message);
 
 void main() async {
   runZonedGuarded(
@@ -49,7 +49,7 @@ void main() async {
       //await MessagingService().init();
 
 
-      const useEmulator = true; // <-- toggle ON/OFF
+      const useEmulator = false; // <-- toggle ON/OFF
 
       final emulatorHost = kIsWeb ? 'localhost' : '10.0.2.2';
       //final emulatorHost = '192.168.68.104'; //over network
@@ -60,7 +60,9 @@ void main() async {
         FirebaseStorage.instance.useStorageEmulator(emulatorHost, 9199);
       }
 
-      log('🔥 Dart main started');
+      if (kReleaseMode) {
+        debugPrint = (String? message, {int? wrapWidth}) {};
+      }
 
       // Enable Firestore caching (good!)
       FirebaseFirestore.instance.settings = const Settings(
@@ -80,8 +82,8 @@ void main() async {
       ),);
     },
     (error, stack) {
-      print('Uncaught error: $error');
-      print('Stack trace: $stack');
+     debugPrint('Uncaught error: $error');
+     debugPrint('Stack trace: $stack');
     },
   );
 }

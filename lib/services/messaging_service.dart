@@ -24,7 +24,7 @@ class MessagingService {
 
     if (kIsWeb) {
       // Skip web entirely
-      print('[FCM] Web detected — skipping notifications');
+     debugPrint('[FCM] Web detected — skipping notifications');
       return;
     }
 

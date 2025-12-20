@@ -37,7 +37,7 @@ class AboutScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildSectionHeader('📍 About StelliesLive'),
+            _buildSectionHeader('About StelliesLive'),
             _buildSectionText(
               'StelliesLive is a free, local discovery platform built to help people in Stellenbosch find nearby events, music, games, markets, and more in real-time. '
                   'It’s designed to connect students, tourists, and locals with the pulse of the town — right here, right now.',
@@ -45,36 +45,36 @@ class AboutScreen extends StatelessWidget {
 
             _buildDivider(),
 
-            _buildSectionHeader('🧑‍💻 Founders'),
+            _buildSectionHeader('Founders'),
             _buildSectionText('• Carlo J. Smit — Developer & Creator'),
             _buildSectionText('• Reinhardt van Zyl — Visionary Co-Founder'),
 
             _buildDivider(),
 
-            _buildSectionHeader('📞 Contact Us'),
-            _buildLink('📧 Email: stellieslive.app@gmail.com', 'mailto:stellieslive.app@gmail.com'),
+            _buildSectionHeader('Contact Us'),
+            _buildLink('Email: stellieslive.app@gmail.com', 'mailto:stellieslive.app@gmail.com'),
 
 
             _buildDivider(),
 
-            _buildSectionHeader('🤝 Support Us'),
+            _buildSectionHeader('Support Us'),
             _buildSectionText(
               'StelliesLive is completely free to use. To keep the platform running, we rely on donations and occasional ads to cover server and data costs. '
                   'If you find the app valuable, consider supporting us!',
             ),
-            _buildLink('☕ Donate via Buy Me a Coffee', 'https://coff.ee/stellieslive'),
+            _buildLink('Donate via Buy Me a Coffee', 'https://coff.ee/stellieslive'),
 
             _buildDivider(),
 
-            _buildSectionHeader('✉️ Feedback'),
+            _buildSectionHeader('Feedback'),
             _buildSectionText(
               'We’d love your thoughts! If you’ve encountered bugs or have suggestions, let us know. Feedback helps us improve StelliesLive for everyone.',
             ),
-            _buildLink('📋 Fill Out Feedback Form', 'https://docs.google.com/forms/d/e/1FAIpQLSe1tEAuqDT4VEjqggP633DLwzqsI3xpEKaP_su4AI_K4KqooA/viewform?usp=dialog'),
+            _buildLink('Fill Out Feedback Form', 'https://docs.google.com/forms/d/e/1FAIpQLSe1tEAuqDT4VEjqggP633DLwzqsI3xpEKaP_su4AI_K4KqooA/viewform?usp=dialog'),
 
             _buildDivider(),
 
-            _buildSectionHeader('📃 Terms & Conditions'),
+            _buildSectionHeader('Terms & Conditions'),
             _buildSectionText(
               '- Event data and crowd levels are estimated and provided as-is.\n'
                   '- Always confirm event details with the venue.\n'
@@ -84,7 +84,7 @@ class AboutScreen extends StatelessWidget {
 
             _buildDivider(),
 
-            _buildSectionHeader('🔒 Privacy Policy'),
+            _buildSectionHeader('Privacy Policy'),
             _buildSectionText(
               'We respect your privacy. We only collect minimal, anonymized data (like your location) to provide real-time local insights.\n'
                   'No personal data is sold or shared without your consent.\n'
@@ -93,7 +93,7 @@ class AboutScreen extends StatelessWidget {
 
             _buildDivider(),
 
-            _buildSectionHeader('📄 Legal Notice'),
+            _buildSectionHeader('Legal Notice'),
             _buildSectionText(
               'StelliesLive is independently developed and is not affiliated with Stellenbosch University.\n'
                   'All logos, names, and trademarks belong to their respective owners.',
@@ -101,17 +101,17 @@ class AboutScreen extends StatelessWidget {
 
             _buildDivider(),
 
-            _buildSectionHeader('🧹 Data Deletion & Privacy Details'),
+            _buildSectionHeader('Data Deletion & Privacy Details'),
             _buildSectionText(
               'You can view our full privacy policy and request data deletion through the links below. We are committed to transparency and protecting your rights.',
             ),
-            _buildLink('🔐 View Full Privacy Policy', 'https://stellieslive.web.app/privacy-policy'),
-            _buildLink('🗑️ Request Data Deletion', 'https://stellieslive.web.app/delete-account'),
+            _buildLink('View Full Privacy Policy', 'https://stellieslive.web.app/privacy-policy'),
+            _buildLink('Request Data Deletion', 'https://stellieslive.web.app/delete-account'),
 
 
             _buildDivider(),
 
-            _buildSectionHeader('📚 Open Source Licenses'),
+            _buildSectionHeader('Open Source Licenses'),
             TextButton.icon(
               onPressed: () => _showLicenses(context),
               icon: const Icon(Icons.article_outlined, color: AppColors.primaryRed),

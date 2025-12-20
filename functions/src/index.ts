@@ -62,7 +62,6 @@ export const handleLocationLog = onDocumentCreated(
     cpu: 1,
   },
   async (event) => {
-  console.log("🚀 Busyness job started");
 
   const now = Date.now();
   const cutoff = Timestamp.fromMillis(now - 30 * 60 * 1000);
@@ -75,7 +74,6 @@ export const handleLocationLog = onDocumentCreated(
     .where("timestamp", ">=", cutoff)
     .get();
 
-  console.log(`📍 Location logs fetched: ${logSnap.size}`);
 
   const logs = logSnap.docs
     .map(d => d.data())
@@ -84,10 +82,8 @@ export const handleLocationLog = onDocumentCreated(
       typeof l.lng === "number"
     );
 
-  console.log(`📍 Valid logs after filtering: ${logs.length}`);
 
   if (!logs.length) {
-    console.warn("⚠️ No valid location logs, exiting");
     return;
   }
 
@@ -119,10 +115,6 @@ export const handleLocationLog = onDocumentCreated(
     }
   });
 
-  console.log(`🧠 Clusters created: ${clusters.length}`);
-  clusters.forEach((c, i) =>
-    console.log(`  └─ Cluster ${i}: count=${c.count}`)
-  );
 
   /* ────────────────────────────────────────────────
    * 3️⃣ Fetch recent feedback
@@ -132,7 +124,7 @@ export const handleLocationLog = onDocumentCreated(
     .where("timestamp", ">=", cutoff)
     .get();
 
-  console.log(`🗣️ Feedback entries fetched: ${feedbackSnap.size}`);
+
 
   const feedbackByEvent = new Map<string, number[]>();
 
@@ -140,7 +132,6 @@ export const handleLocationLog = onDocumentCreated(
     const f = doc.data();
 
     if (!f.eventId || !f.busyness) {
-      console.warn("⚠️ Invalid feedback doc:", doc.id);
       return;
     }
 
@@ -152,13 +143,11 @@ export const handleLocationLog = onDocumentCreated(
     feedbackByEvent.get(f.eventId)!.push(score);
   });
 
-  console.log(`🗂️ Events with feedback: ${feedbackByEvent.size}`);
 
   /* ────────────────────────────────────────────────
    * 4️⃣ Fetch ALL events near clusters
    * ──────────────────────────────────────────────── */
   const eventSnap = await db.collection("events").get();
-  console.log(`🎪 Events fetched: ${eventSnap.size}`);
 
   const batch = db.batch();
   let updatedCount = 0;
@@ -173,17 +162,9 @@ export const handleLocationLog = onDocumentCreated(
     const lng = eventData?.location?.lng;
 
      if (typeof lat !== "number" || typeof lng !== "number") {
-    console.warn(
-      `⚠️ Event ${snap.id} missing coordinates`,
-      {
-        location: eventData?.location ?? null,
-      }
-    );
     continue;
   }
-   console.log(
-    `📍 Event ${snap.id} coordinates OK: lat=${lat}, lng=${lng}`
-  );
+  
 
     let nearest: any = null;
     let minDist = Infinity;
@@ -231,56 +212,6 @@ export const handleLocationLog = onDocumentCreated(
       weighted >= 0.3 ? "Moderate" :
       "Quiet";
 
-    // Count feedback buckets for detailed debug
-    let q = 0, m = 0, b = 0;
-    for (const s of feedbackScores) {
-      if (s === 0) q++;
-      else if (s === 1) m++;
-      else b++;
-    }
-
-    // Priors (must match bayesianBusyness)
-    const pq = 0.1, pm = 0.05, pb = 0.1;
-
-    // Bayes numerator / denominator (for logging clarity)
-    const bayesianNumerator = 0 * (q + pq) + 1 * (m + pm) + 2 * (b + pb);
-    const bayesianDenominator = (q + pq) + (m + pm) + (b + pb);
-
-    /* 🔍 FULL DEBUG — BUSYNESS CALCULATION */
-    console.log(
-      "📊 Busyness calc",
-      {
-        eventId: snap.id,
-        clusterCount: nearest.count,
-        locationScore,
-        normalizedLocationScore: Number(normalizedLocationScore.toFixed(2)),
-
-        feedbackCount: feedbackScores.length,
-        feedbackScores,
-        feedbackBreakdown: { Quiet: q, Moderate: m, Busy: b },
-        normalizedFeedbackScore: Number(normalizedFeedbackScore.toFixed(2)),
-
-        priors: { Quiet: pq, Moderate: pm, Busy: pb },
-        bayesian: {
-          numerator: bayesianNumerator,
-          denominator: bayesianDenominator,
-          score: Number(feedbackScore.toFixed(2)),
-        },
-
-        locationConfidence: Number(locationConfidence.toFixed(2)),
-        locationWeight: Number(locationWeight.toFixed(2)),
-        feedbackWeight: Number(feedbackWeight.toFixed(2)),
-
-        weighted: Number(weighted.toFixed(2)),
-        finalLevel,
-      }
-    );
-
-
-    console.log(
-      `📊 Event ${snap.id}: loc=${locationScore}, fb=${feedbackScores.length}, final=${finalLevel}`
-    );
-
     batch.update(snap.ref, {
       busynessLevel: finalLevel,
       busynessUpdatedAt: Timestamp.now(),
@@ -290,10 +221,8 @@ export const handleLocationLog = onDocumentCreated(
   }
 
   if (!updatedCount) {
-    console.warn("⚠️ No events updated");
   } else {
     await batch.commit();
-    console.log(`✅ Busyness updated for ${updatedCount} events`);
   }
 }
 );
@@ -316,7 +245,6 @@ export const cleanUpOldEvents = onDocumentUpdated(
     const docData = after.data();
 
     if (!docData) {
-      console.log(`Event ${eventId} has no data, skipping.`);
       return;
     }
 
@@ -337,20 +265,15 @@ export const cleanUpOldEvents = onDocumentUpdated(
             try {
               await file.delete();
               deletedFiles++;
-              console.log(`Deleted file: ${file.name}`);
             } catch (err) {
-              console.error(`Cannot delete file ${file.name}:`, err);
             }
           }
         }
 
         await after.ref.delete();
-        console.log(`Deleted event ${eventId} and ${deletedFiles} image(s).`);
       } catch (err) {
-        console.error(`Error cleaning up event ${eventId}:`, err);
       }
     } else {
-      console.log(`Event ${eventId} not expired or recurring, skipping cleanup.`);
     }
   }
 );
