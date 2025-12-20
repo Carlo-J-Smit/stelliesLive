@@ -12,6 +12,7 @@ import 'package:intl/intl.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:provider/provider.dart';
+import 'package:geolocator/geolocator.dart';
 
 import '../constants/colors.dart';
 import '../models/event.dart';
@@ -41,6 +42,79 @@ class _MapPickerDialog extends StatefulWidget {
 
 class _MapPickerDialogState extends State<_MapPickerDialog> {
   LatLng? _pickedLocation;
+  LatLng? _currentLocation;
+  GoogleMapController? _mapController; // make nullable
+  String? _errorMessage;
+  bool _loading = true;
+
+  // Fallback location (center of map if location unavailable)
+  final LatLng _fallbackLocation = LatLng(0, 0);
+
+  @override
+  void initState() {
+    super.initState();
+    _determinePosition();
+  }
+
+  Future<void> _determinePosition() async {
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        setState(() {
+          _errorMessage = "Location services are disabled.";
+          _currentLocation = _fallbackLocation;
+          _loading = false;
+        });
+        return;
+      }
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          setState(() {
+            _errorMessage = "Location permission denied.";
+            _currentLocation = _fallbackLocation;
+            _loading = false;
+          });
+          return;
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        setState(() {
+          _errorMessage =
+          "Location permissions are permanently denied. You can enable them in settings.";
+          _currentLocation = _fallbackLocation;
+          _loading = false;
+        });
+        return;
+      }
+
+      // Get current position
+      Position position = await Geolocator.getCurrentPosition();
+      _currentLocation = LatLng(position.latitude, position.longitude);
+
+      // Only animate camera if map is already created
+      if (_mapController != null) {
+        _mapController!.animateCamera(
+          CameraUpdate.newCameraPosition(
+            CameraPosition(target: _currentLocation!, zoom: 15),
+          ),
+        );
+      }
+
+      setState(() {
+        _loading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _errorMessage = "Error getting location: $e";
+        _currentLocation = _fallbackLocation;
+        _loading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -49,21 +123,48 @@ class _MapPickerDialogState extends State<_MapPickerDialog> {
       content: SizedBox(
         width: 400,
         height: 400,
-        child: GoogleMap(
-          initialCameraPosition: const CameraPosition(
-            target: LatLng(0, 0),
-            zoom: 1,
-          ),
-          onTap: (latLng) => setState(() => _pickedLocation = latLng),
-          markers:
-              _pickedLocation != null
-                  ? {
-                    Marker(
-                      markerId: const MarkerId('picked'),
-                      position: _pickedLocation!,
-                    ),
+        child: _loading
+            ? const Center(child: CircularProgressIndicator())
+            : Column(
+          children: [
+            Expanded(
+              child: GoogleMap(
+                initialCameraPosition: CameraPosition(
+                  target: _currentLocation!,
+                  zoom: 15,
+                ),
+                onMapCreated: (controller) {
+                  _mapController = controller;
+                  // Animate to current location if it's already set
+                  if (_currentLocation != null) {
+                    _mapController!.animateCamera(
+                      CameraUpdate.newCameraPosition(
+                        CameraPosition(target: _currentLocation!, zoom: 15),
+                      ),
+                    );
                   }
-                  : {},
+                },
+                onTap: (latLng) => setState(() => _pickedLocation = latLng),
+                markers: _pickedLocation != null
+                    ? {
+                  Marker(
+                    markerId: const MarkerId('picked'),
+                    position: _pickedLocation!,
+                  ),
+                }
+                    : {},
+              ),
+            ),
+            if (_errorMessage != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8.0),
+                child: Text(
+                  _errorMessage!,
+                  style: const TextStyle(color: Colors.red),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+          ],
         ),
       ),
       actions: [
@@ -72,10 +173,9 @@ class _MapPickerDialogState extends State<_MapPickerDialog> {
           child: const Text("Cancel"),
         ),
         ElevatedButton(
-          onPressed:
-              _pickedLocation != null
-                  ? () => Navigator.pop(context, _pickedLocation)
-                  : null,
+          onPressed: _pickedLocation != null
+              ? () => Navigator.pop(context, _pickedLocation)
+              : null,
           child: const Text("Select"),
         ),
       ],
@@ -439,14 +539,22 @@ class _EventFormPageState extends State<EventFormPage> {
   }
 
   Widget _locationSection() {
+    String locationText;
+    if (_locationLat != null && _locationLng != null) {
+      if (_locationAddress != null && _locationAddress!.isNotEmpty) {
+        locationText = _locationAddress!;
+      } else {
+        locationText = 'Lat: ${_locationLat!.toStringAsFixed(5)}, '
+            'Lng: ${_locationLng!.toStringAsFixed(5)}';
+      }
+    } else {
+      locationText = 'No location selected';
+    }
+
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch, // <-- stretch
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          _locationLat != null
-              ? 'Lat: $_locationLat, Lng: $_locationLng'
-              : 'No location selected',
-        ),
+        Text(locationText),
         const SizedBox(height: 10),
         TextButton.icon(
           icon: const Icon(Icons.location_on),
@@ -456,6 +564,7 @@ class _EventFormPageState extends State<EventFormPage> {
       ],
     );
   }
+
 
 
   Widget _mediaSection() {
@@ -576,24 +685,35 @@ class _EventFormPageState extends State<EventFormPage> {
     );
 
     if (picked != null) {
+      // Always store coordinates
       _locationLat = picked.latitude;
       _locationLng = picked.longitude;
+
       try {
+        // Attempt to get address
         final placemarks = await placemarkFromCoordinates(
           picked.latitude,
           picked.longitude,
         );
+
         if (placemarks.isNotEmpty) {
           final place = placemarks.first;
+          // Compose a human-readable address
           _locationAddress =
-              '${place.name}, ${place.locality}, ${place.administrativeArea}';
+              '${place.name ?? ''}, ${place.locality ?? ''}, ${place.administrativeArea ?? ''}'
+                  .replaceAll(RegExp(r'(, )+$'), ''); // remove trailing commas
+        } else {
+          _locationAddress = null;
         }
-      } catch (_) {
+      } catch (e) {
+        // Failed to get address (no internet, etc.)
         _locationAddress = null;
       }
-      setState(() {});
+
+      setState(() {}); // Refresh UI
     }
   }
+
 
   Future<void> _submitEvent() async {
     setState(() {
