@@ -20,6 +20,7 @@ class Event {
   final String? busynessLevel;
   final int? likes;
   final int? dislikes;
+  final String business;
 
 
 
@@ -30,6 +31,7 @@ class Event {
     required this.venue,
     required this.dateTime,
     required this.category,
+    required this.business,
     this.recurring,
     this.dayOfWeek,
     this.imageUrl,
@@ -43,6 +45,7 @@ class Event {
     this.busynessLevel,
     this.likes,
     this.dislikes,
+
   });
 
   factory Event.fromMap(String id, Map<String, dynamic> data) {
@@ -67,6 +70,7 @@ class Event {
       likes: data['likes'],
       dislikes: data['dislikes'],
       iconUrl: data['iconUrl'],
+      business: data['business'],
     );
   }
 

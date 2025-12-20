@@ -20,11 +20,13 @@ import '../providers/event_provider.dart';
 class EventFormPage extends StatefulWidget {
   final Event? event;
   final EventProvider provider; // <-- pass provider
+  final String businessName;
 
   const EventFormPage({
     super.key,
     this.event,
     required this.provider,
+    required this.businessName,
   });
 
   @override
@@ -600,6 +602,37 @@ class _EventFormPageState extends State<EventFormPage> {
     });
 
     try {
+      // ---------------- VALIDATIONS ----------------
+      if (_titleController.text.trim().isEmpty) {
+        _showError('Title is required');
+        return;
+      }
+      if (_venueController.text.trim().isEmpty) {
+        _showError('Venue is required');
+        return;
+      }
+      if (_categoryController.text.trim().isEmpty) {
+        _showError('Category is required');
+        return;
+      }
+      if (!_isRecurring && _selectedDateTime == null) {
+        _showError('Please select a date & time');
+        return;
+      }
+      if (_isRecurring && _selectedDayOfWeek == null) {
+        _showError('Please select a day of week');
+        return;
+      }
+      if (_priceController.text.trim().isEmpty ||
+          double.tryParse(_priceController.text.trim()) == null) {
+        _showError('Please enter a valid price');
+        return;
+      }
+      if (_locationLat == null || _locationLng == null) {
+        _showError('Please select a location');
+        return;
+      }
+
       if (!_isRecurring && _selectedDateTime == null) {
         throw Exception('Please select a date & time');
       }
@@ -634,6 +667,7 @@ class _EventFormPageState extends State<EventFormPage> {
         'busynessLevel': 'Quiet',
         'likes': 0,
         'dislikes': 0,
+        'business' : widget.businessName,
       };
 
       final confirmed = await showDialog<bool>(
@@ -772,6 +806,25 @@ class _EventFormPageState extends State<EventFormPage> {
       await ref.putFile(File(_pickedIcon!.path));
     }
     _iconUrl = await ref.getDownloadURL();
+  }
+
+  void _showError(String message) {
+    final snackBar = SnackBar(
+      content: Text(
+        message,
+        style: const TextStyle(fontSize: 18),
+      ),
+      backgroundColor: AppColors.primaryRed,
+      behavior: SnackBarBehavior.floating,
+      margin: const EdgeInsets.fromLTRB(16, 50, 16, 0), // top margin = 50
+      padding: const EdgeInsets.all(20), // increase padding
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      duration: const Duration(seconds: 4),
+    );
+
+    ScaffoldMessenger.of(context).showSnackBar(snackBar);
   }
 
   Future<void> _deleteEvent() async {

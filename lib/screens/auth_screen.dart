@@ -113,6 +113,8 @@ class _AuthScreenState extends State<AuthScreen> {
           'email': emailToUse,
           'username_or_cell': identifier,
           'role': emailToUse == 'admin@gmail.com' ? 'admin' : 'user',
+          'business_name' : '',
+          'business_ids' : FieldValue.arrayUnion([]),
         }, SetOptions(merge: true));
 
 // 2. Create default notification preferences

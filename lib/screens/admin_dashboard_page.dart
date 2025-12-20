@@ -7,17 +7,24 @@ import '../providers/event_provider.dart';
 import '../screens/event_form.dart';
 import 'dart:math';
 import '../widgets/nav_bar.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
 
 class AdminDashboardPage extends StatefulWidget {
-  const AdminDashboardPage({super.key});
+  final String businessName;
+
+  const AdminDashboardPage({
+    super.key,
+    required this.businessName,
+  });
 
   @override
   State<AdminDashboardPage> createState() => _AdminDashboardPageState();
 }
 
+
 class _AdminDashboardPageState extends State<AdminDashboardPage> {
-  // Dummy business info
-  final String businessName = "Your Business Name";
 
   // Example events list (replace with provider / Firebase)
   late List<Event> _events = [];
@@ -39,6 +46,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 
     // Initialize filteredEvents
     _filteredEvents = List.from(_events);
+    _filterEvents(_searchController.text);
 
     _searchController.addListener(() {
       _filterEvents(_searchController.text);
@@ -46,22 +54,29 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   }
 
   void _filterEvents(String query) {
-    setState(() {
-      if (query.isEmpty) {
-        _filteredEvents = List.from(_events);
-      } else {
-        _filteredEvents =
-            _events.where((event) {
-              return (event.title.toLowerCase().contains(query) ||
-                  event.venue.toLowerCase().contains(query));
-            }).toList();
+    final q = query.toLowerCase();
 
-        _filteredEvents.sort(
-          (a, b) => (a.title ?? '').compareTo(b.title ?? ''),
-        );
-      }
+    setState(() {
+      _filteredEvents = _events.where((event) {
+        // Always filter by business
+        if (event.business.toLowerCase() != widget.businessName.toLowerCase()) {
+          return false;
+        }
+
+        // If no search query, include all business events
+        if (q.isEmpty) return true;
+
+        // Otherwise also filter by title or venue
+        return event.title.toLowerCase().contains(q) ||
+            event.venue.toLowerCase().contains(q);
+      }).toList();
+
+      _filteredEvents.sort(
+            (a, b) => (a.title ?? '').compareTo(b.title ?? ''),
+      );
     });
   }
+
 
   void _openEventDetail(Event? event) {
     showDialog(
@@ -85,7 +100,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       MaterialPageRoute(
         builder: (_) => EventFormPage(
           event: event,
-          provider: provider, // <-- pass it here
+          provider: provider, // <-- pass it here-
+          businessName: widget.businessName,
         ),
       ),
     );
@@ -121,7 +137,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
               padding: const EdgeInsets.all(16),
               alignment: Alignment.center,
               child: Text(
-                businessName,
+                widget.businessName,
                 style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -325,7 +341,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         content = const Center(child: Text("Analytics coming soon"));
         break;
       case 2:
-        content = const Center(child: Text("Settings coming soon"));
+        content = AccountManagementTab(businessName: widget.businessName);
         break;
       default:
         content = const SizedBox.shrink();
@@ -682,3 +698,261 @@ class _BusynessIndicatorState extends State<BusynessIndicator>
     );
   }
 }
+
+class AccountManagementTab extends StatefulWidget {
+  final String businessName;
+
+  const AccountManagementTab({super.key, required this.businessName});
+
+  @override
+  State<AccountManagementTab> createState() => _AccountManagementTabState();
+}
+
+class _AccountManagementTabState extends State<AccountManagementTab> {
+  final TextEditingController _emailController = TextEditingController();
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  DocumentReference get _businessRef =>
+      _firestore.collection('businesses').doc(widget.businessName);
+
+  /// Add user to business
+  Future<void> _addUserEmail() async {
+    final email = _emailController.text.trim().toLowerCase();
+    if (email.isEmpty) return;
+
+    final businessSnap = await _businessRef.get();
+    if (!businessSnap.exists) {
+      // Option 1: show error
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Business '${widget.businessName}' does not exist.")),
+      );
+
+      // Option 2: auto-create (uncomment if you want)
+      await _businessRef.set({'userEmails': [], 'user_uids': []}, SetOptions(merge: true));
+
+
+      return;
+    }
+
+
+
+    try {
+      // Find user
+      final userQuery = await _firestore
+          .collection('users')
+          .where('email', isEqualTo: email)
+          .limit(1)
+          .get();
+
+      if (userQuery.docs.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("User not found.")),
+        );
+        return;
+      }
+
+      final userRef = userQuery.docs.first.reference;
+      final userUid = userQuery.docs.first.id;
+      final userData = userQuery.docs.first.data();
+
+      final businessRef = _businessRef;
+      final batch = _firestore.batch();
+
+      // Add business ID to user
+      List<String> userBusinesses = List<String>.from(userData['business_ids'] ?? []);
+      if (!userBusinesses.contains(widget.businessName)) {
+        userBusinesses.add(widget.businessName);
+      }
+
+      batch.update(userRef, {
+        'business_ids': userBusinesses,
+        'role': 'business',
+        'business_name' : widget.businessName,
+      });
+
+      // Add user UID to business
+      batch.update(businessRef, {
+        'user_uids': FieldValue.arrayUnion([userUid]),
+        'userEmails': FieldValue.arrayUnion([email]),
+      });
+
+      await batch.commit();
+
+      _emailController.clear();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("$email added successfully.")),
+      );
+      setState(() {}); // Refresh list
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Failed to add user: $e")),
+      );
+    }
+  }
+
+  /// Remove user from business
+  Future<void> _removeUserEmail(String email) async {
+    try {
+      // Find user
+      final userQuery = await _firestore
+          .collection('users')
+          .where('email', isEqualTo: email)
+          .limit(1)
+          .get();
+
+      if (userQuery.docs.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("User not found.")),
+        );
+        return;
+      }
+
+      final userRef = userQuery.docs.first.reference;
+      final userUid = userQuery.docs.first.id;
+      final userData = userQuery.docs.first.data()!;
+
+      List<String> userBusinesses = List<String>.from(userData['business_ids'] ?? []);
+      userBusinesses.remove(widget.businessName);
+
+      final newRole = userBusinesses.isEmpty ? 'user' : 'business';
+
+      final batch = _firestore.batch();
+
+      batch.update(userRef, {
+        'business_ids': userBusinesses,
+        'role': newRole,
+        'business_name' : '',
+      });
+
+      final businessRef = _businessRef;
+      batch.update(businessRef, {
+        'user_uids': FieldValue.arrayRemove([userUid]),
+        'userEmails': FieldValue.arrayRemove([email]),
+      });
+
+      await batch.commit();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("$email removed successfully.")),
+      );
+      setState(() {}); // Refresh list
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Failed to remove user: $e")),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            "Account Management",
+            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            "Manage who has access to this business dashboard.",
+            style: TextStyle(color: Colors.grey),
+          ),
+          const SizedBox(height: 24),
+
+          /// ADD USER
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _emailController,
+                  decoration: const InputDecoration(
+                    labelText: "Add user by email",
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              ElevatedButton.icon(
+                icon: const Icon(Icons.person_add),
+                label: const Text("Add"),
+                onPressed: _addUserEmail,
+              )
+            ],
+          ),
+
+          const SizedBox(height: 32),
+
+          /// USER LIST
+          Expanded(
+            child: StreamBuilder<DocumentSnapshot>(
+              stream: _businessRef.snapshots(),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                final data = snapshot.data!.data() as Map<String, dynamic>? ?? {};
+                final List users = data['userEmails'] ?? [];
+
+                if (users.isEmpty) {
+                  return const Center(
+                    child: Text(
+                      "No users added yet.",
+                      style: TextStyle(color: Colors.grey),
+                    ),
+                  );
+                }
+
+                return ListView.separated(
+                  itemCount: users.length,
+                  separatorBuilder: (_, __) => const Divider(),
+                  itemBuilder: (context, index) {
+                    final email = users[index];
+
+                    return ListTile(
+                      leading: const Icon(Icons.person_outline),
+                      title: Text(email),
+                      trailing: IconButton(
+                        icon: const Icon(Icons.delete, color: Colors.red),
+                        onPressed: () async {
+                          final confirm = await showDialog<bool>(
+                            context: context,
+                            builder: (_) => AlertDialog(
+                              title: const Text("Remove user"),
+                              content: Text("Remove $email from this business?"),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(context, false),
+                                  child: const Text("Cancel"),
+                                ),
+                                ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.red,
+                                  ),
+                                  onPressed: () => Navigator.pop(context, true),
+                                  child: const Text("Remove"),
+                                ),
+                              ],
+                            ),
+                          );
+
+                          if (confirm == true) {
+                            _removeUserEmail(email);
+                          }
+                        },
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+

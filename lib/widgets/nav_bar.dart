@@ -26,6 +26,7 @@ class Navbar extends StatefulWidget {
 class _NavbarState extends State<Navbar> {
   User? _user;
   String? _role;
+  String? _business;
   late final StreamSubscription<User?> _authSub;
 
   @override
@@ -55,6 +56,7 @@ class _NavbarState extends State<Navbar> {
         setState(() {
           _user = null;
           _role = null;
+          _business = null;
         });
       }
       return;
@@ -70,12 +72,16 @@ class _NavbarState extends State<Navbar> {
       setState(() {
         _user = user;
         _role = doc.data()?['role'];
+        if (_role == 'business') {
+          _business = doc.data()?['business_name'];
+        }
       });
     } catch (e) {
       if (mounted) {
         setState(() {
           _user = user;
           _role = null;
+          _business = null;
         });
       }
     }
@@ -89,7 +95,16 @@ class _NavbarState extends State<Navbar> {
 
   void _logout() async {
     await FirebaseAuth.instance.signOut();
+
+    if (!mounted) return;
+
+    // Close ALL pages and go back to public landing page
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const EventsScreen()),
+          (route) => false,
+    );
   }
+
 
   Widget _navButton(BuildContext context, String label, VoidCallback onTap,
       {Color color = AppColors.textLight}) {
@@ -101,6 +116,7 @@ class _NavbarState extends State<Navbar> {
 
   Widget _buildDesktopNav(BuildContext context) {
     final isAdmin = _role == 'admin';
+    final isBusiness = _role == 'business';
 
     return Row(
       children: [
@@ -127,12 +143,6 @@ class _NavbarState extends State<Navbar> {
             MaterialPageRoute(builder: (_) => const EventsScreen()),
           );
         }),
-        _navButton(context, 'dash', () {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (_) => const AdminDashboardPage()),
-          );
-        }),
         if (_user == null)
           _navButton(context, 'Business Login', () {
             Navigator.push(
@@ -140,12 +150,24 @@ class _NavbarState extends State<Navbar> {
               MaterialPageRoute(builder: (_) => const AuthScreen()),
             );
           }),
+        if (isBusiness)
+          _navButton(
+            context,
+            'Business Management',
+                () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => AdminDashboardPage(businessName: _business ?? '')),
+              );
+            },
+            color: Colors.yellow,
+          ),
         if (_user != null)
           _navButton(context, 'Logout', _logout),
         if (isAdmin)
           _navButton(
             context,
-            'Business Management',
+            'Data Management',
             () {
               Navigator.push(
                 context,
@@ -163,6 +185,7 @@ class _NavbarState extends State<Navbar> {
 
   Widget _buildMobileNav(BuildContext context) {
     final isAdmin = _role == 'admin';
+    final isBusiness = _role == 'business';
 
     return Row(
       children: [
@@ -204,6 +227,12 @@ class _NavbarState extends State<Navbar> {
                   MaterialPageRoute(builder: (_) => const AuthScreen()),
                 );
                 break;
+              case 'Business Management':
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => AdminDashboardPage(businessName: _business ?? '')),
+                );
+                break;
               case 'Logout':
                 _logout();
                 break;
@@ -224,10 +253,12 @@ class _NavbarState extends State<Navbar> {
             const PopupMenuItem(value: 'Events', child: Text('Events')),
             if (_user == null)
               const PopupMenuItem(value: 'Login', child: Text('Business Login')),
+            if (isBusiness)
+              const PopupMenuItem(value: 'Admin', child: Text('Business Management')),
             if (_user != null)
               const PopupMenuItem(value: 'Logout', child: Text('Logout')),
             if (isAdmin)
-              const PopupMenuItem(value: 'Admin', child: Text('Business Management')),
+              const PopupMenuItem(value: 'Admin', child: Text('Data Management')),
             const PopupMenuItem(value: 'Feedback', child: Text('Feedback')),
           ],
         ),
