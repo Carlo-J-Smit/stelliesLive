@@ -130,7 +130,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         await FirebaseMessaging.instance.unsubscribeFromTopic(topic);
       }
     }
-
     setState(() => _notifyProximity = value);
   }
 
