@@ -16,6 +16,7 @@ import 'package:provider/provider.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 
 
+
 import 'firebase_options.dart';
 import 'screens/events_screen.dart';
 import 'screens/admin_page.dart';
@@ -235,47 +236,61 @@ class _MyAppState extends State<MyApp> {
     // Request permissions AFTER first frame
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await _requestPermissionsOnLaunch();
+      await _subscribeToBusinessTopic();
     });
 
-    // Subscribe device to global topic for notifications
-    FirebaseMessaging.instance.subscribeToTopic('allDevices');
+    _setupFCMListeners();
+  }
 
-
-    // Handle foreground messages
+  void _setupFCMListeners() {
     FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
-      final data = message.data;
-      final businessId = data['businessId'] ?? '';
+      final notification = message.notification;
+      if (notification == null) return;
 
-      // Check local preferences
-      final prefs = await SharedPreferences.getInstance();
-      final showNotification = prefs.getBool('notify_$businessId') ?? true;
-      if (!showNotification) return;
-
-      // Show local notification
-      if (message.notification != null) {
-        flutterLocalNotificationsPlugin.show(
-          message.hashCode,
-          message.notification!.title,
-          message.notification!.body,
-          const NotificationDetails(
-            android: AndroidNotificationDetails(
-              'event_proximity',
-              'Nearby Events',
-              channelDescription: 'Notifications for nearby events',
-              importance: Importance.high,
-              priority: Priority.high,
-            ),
+      await flutterLocalNotificationsPlugin.show(
+        message.hashCode,
+        notification.title,
+        notification.body,
+        const NotificationDetails(
+          android: AndroidNotificationDetails(
+            'event_proximity',
+            'Nearby Events',
+            channelDescription: 'Notifications for events and updates',
+            importance: Importance.high,
+            priority: Priority.high,
           ),
-        );
-      }
+        ),
+      );
     });
 
-    // Optional: handle background/terminated messages if needed
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-      // Handle navigation or special logic if user taps notification
-      debugPrint('User tapped notification: ${message.data}');
+      debugPrint('Notification opened: ${message.data}');
+      // Optional: navigate to event screen using eventId
     });
   }
+
+
+  Future<void> _subscribeToBusinessTopic() async {
+    // You already know the business name in your app
+    const businessName = 'stellieslive'; // or load dynamically if needed
+
+    await FirebaseMessaging.instance.subscribeToTopic(
+      'business_$businessName',
+    );
+
+    debugPrint('Subscribed to business_$businessName');
+  }
+
+  Future<void> subscribeToEvent(Event event) async {
+    if (event.id == null) return;
+
+    await FirebaseMessaging.instance.subscribeToTopic(
+      'event_${event.id}',
+    );
+
+    debugPrint('Subscribed to event_${event.id}');
+  }
+
 
   Future<void> _requestPermissionsOnLaunch() async {
     // --- Location permission ---

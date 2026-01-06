@@ -3,6 +3,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -65,6 +67,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _businessNotifications = notifications;
         _loadingBusinesses = false;
       });
+
+      await _syncBusinessTopics();
     } catch (e) {
       debugPrint('Error fetching businesses: $e');
       setState(() => _loadingBusinesses = false);
@@ -112,18 +116,73 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   /// Toggle global proximity notifications
-  void _toggleNotifications(bool value) async {
+  Future<void> _toggleNotifications(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('notifyProximity', value);
+
+    for (final b in _businesses) {
+      final id = b['id']!;
+      final topic = 'business_$id';
+
+      if (value && (_businessNotifications[id] ?? true)) {
+        await FirebaseMessaging.instance.subscribeToTopic(topic);
+      } else {
+        await FirebaseMessaging.instance.unsubscribeFromTopic(topic);
+      }
+    }
+
     setState(() => _notifyProximity = value);
   }
 
+
   /// Toggle individual business notifications
-  void _toggleBusinessNotification(String businessId, bool value) async {
+  Future<void> _toggleBusinessNotification(
+      String businessId,
+      bool value,
+      ) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('notify_$businessId', value);
-    setState(() => _businessNotifications[businessId] = value);
+
+    final topic = 'business_$businessId';
+
+    try {
+      if (value) {
+        // ✅ User ENABLED notifications
+        await FirebaseMessaging.instance.subscribeToTopic(topic);
+        debugPrint('Subscribed to $topic');
+      } else {
+        // ❌ User DISABLED notifications
+        await FirebaseMessaging.instance.unsubscribeFromTopic(topic);
+        debugPrint('Unsubscribed from $topic');
+      }
+
+      // Persist locally
+      await prefs.setBool('notify_$businessId', value);
+
+      setState(() {
+        _businessNotifications[businessId] = value;
+      });
+    } catch (e) {
+      debugPrint('Topic toggle failed: $e');
+    }
   }
+
+  Future<void> _syncBusinessTopics() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    for (final b in _businesses) {
+      final id = b['id']!;
+      final enabled = prefs.getBool('notify_$id') ?? true;
+      final topic = 'business_$id';
+
+      if (enabled) {
+        await FirebaseMessaging.instance.subscribeToTopic(topic);
+      } else {
+        await FirebaseMessaging.instance.unsubscribeFromTopic(topic);
+      }
+    }
+  }
+
+
 
   @override
   Widget build(BuildContext context) {
