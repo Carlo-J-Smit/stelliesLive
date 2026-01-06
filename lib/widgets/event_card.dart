@@ -55,6 +55,9 @@ class _EventCardState extends State<EventCard> {
           errorBuilder: (_, __, ___) => const SizedBox());
     }
 
+    if (event.imageUrl != null) debugPrint('Loading image: ${event.imageUrl}');
+
+
     return GestureDetector(
       onTap: _toggleExpanded,
       child: AnimatedContainer(

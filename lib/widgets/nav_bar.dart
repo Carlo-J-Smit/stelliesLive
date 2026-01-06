@@ -1,17 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:stellieslive/screens/SettingsScreen.dart';
 import '../constants/colors.dart';
 import '../screens/activity.dart';
 import '../screens/events_screen.dart';
 import '../screens/auth_screen.dart';
 import '../screens/admin_page.dart';
 import '../screens/admin_dashboard_page.dart';
+import '../screens/about_screen.dart';
 import 'dart:async';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:io' show Platform;
 import '../models/event.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:workmanager/workmanager.dart';
+import 'package:flutter/foundation.dart' show kReleaseMode;
+import '../services/debug_background_task.dart';
+
+
+
 
 
 
@@ -177,6 +185,29 @@ class _NavbarState extends State<Navbar> {
             color: Colors.yellow,
           ),
         _navButton(context, 'Feedback', _launchFeedbackForm),
+        // Settings as gear icon
+        IconButton(
+          icon: const Icon(Icons.settings, color: AppColors.textLight),
+          tooltip: 'Settings',
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const SettingsScreen()),
+            );
+          },
+        ),
+        IconButton(
+          icon: const Icon(Icons.bug_report, color: Colors.yellow),
+          tooltip: 'Test Background Task',
+          onPressed: () async {
+            print('Manual debug task triggered from Navbar');
+            await runBackgroundTaskDebug();
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Debug background task completed!')),
+            );
+          },
+        ),
+
 
 
       ],
@@ -198,6 +229,39 @@ class _NavbarState extends State<Navbar> {
           ),
         ),
         const Spacer(),
+
+        // Settings gear + test button
+        Row(
+          children: [
+            // Test background task button (debug only)
+            if (!kReleaseMode)
+              IconButton(
+                icon: const Icon(Icons.bug_report, color: Colors.yellow),
+                tooltip: 'Test Background Task',
+                onPressed: () async {
+                  print('Manual debug task triggered from Navbar');
+                  await runBackgroundTaskDebug();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Debug background task completed!')),
+                  );
+                },
+              ),
+
+            // Settings gear icon
+            IconButton(
+              icon: const Icon(Icons.settings, color: AppColors.textLight),
+              tooltip: 'Settings',
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                );
+              },
+            ),
+          ],
+        ),
+
+
         PopupMenuButton<String>(
           icon: const Icon(Icons.menu, color: Colors.white),
           onSelected: (value) {

@@ -1,152 +1,335 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb, kReleaseMode;
 import 'package:firebase_core/firebase_core.dart';
-import 'package:stellieslive/constants/colors.dart';
-import 'package:stellieslive/screens/admin_page.dart';
-import 'services/firestore_service.dart';
-import 'models/event.dart';
-import 'widgets/event_card.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:firebase_performance/firebase_performance.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:workmanager/workmanager.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:provider/provider.dart';
+
 import 'firebase_options.dart';
 import 'screens/events_screen.dart';
 import 'screens/admin_page.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_performance/firebase_performance.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:permission_handler/permission_handler.dart';
-import 'services/notification_service.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
-import '../screens/about_screen.dart';
-import 'package:google_mobile_ads/google_mobile_ads.dart';
-import 'dart:async'; // This gives you runZonedGuarded
-import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
-import 'package:stellieslive/services/messaging_service.dart';
-import 'firebase_options.dart'; // If you have generated firebase options
-import 'package:provider/provider.dart';
+import 'screens/about_screen.dart';
+import 'screens/SettingsScreen.dart';
+import 'constants/colors.dart';
 import 'providers/event_provider.dart';
-import 'package:flutter/foundation.dart';
+import 'services/firestore_service.dart';
+import 'models/event.dart';
+import 'widgets/event_card.dart';
 
-Future<void> _requestNotificationPermission() async {
-  //
+const String locationTask = "pingUserLocation";
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
+
+FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+FlutterLocalNotificationsPlugin();
+
+/// Background callback for WorkManager
+@pragma('vm:entry-point')
+void callbackDispatcher() {
+  Workmanager().executeTask((task, inputData) async {
+    WidgetsFlutterBinding.ensureInitialized();
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+
+    debugPrint('*** callbackDispatcher triggered for task: $task');
+
+    if (task != locationTask) return Future.value(true);
+
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        debugPrint('Location service disabled.');
+        return Future.value(true);
+      }
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        debugPrint('Location permission not granted.');
+        return Future.value(true);
+      }
+
+      // Get device location
+      Position pos = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.low,
+      );
+      debugPrint('Current position: lat=${pos.latitude}, lng=${pos.longitude}');
+
+      // Log location — no auth required
+      await FirebaseFirestore.instance.collection('location_logs').add({
+        'timestamp': Timestamp.now(),
+        'lat': pos.latitude,
+        'lng': pos.longitude,
+      });
+      debugPrint('Location logged successfully.');
+
+    } catch (e, stack) {
+      debugPrint('Background location error: $e');
+      debugPrint('Stack trace: $stack');
+    }
+
+    debugPrint('*** callbackDispatcher finished for task: $task');
+    return Future.value(true);
+  });
 }
 
 
-void main() async {
-  runZonedGuarded(
-    () async {
-      WidgetsFlutterBinding.ensureInitialized();
-
-      //ads
-
-      if (!kIsWeb) {
-        MobileAds.instance.initialize();
-      }
-
-      await Firebase.initializeApp(
-        options: DefaultFirebaseOptions.currentPlatform,
-      );
-
-      //await MessagingService().init();
 
 
-      const useEmulator = false; // <-- toggle ON/OFF
+Future<void> main() async {
+  runZonedGuarded(() async {
+    WidgetsFlutterBinding.ensureInitialized();
 
-      final emulatorHost = kIsWeb ? 'localhost' : '10.0.2.2';
-      //final emulatorHost = '192.168.68.104'; //over network
+    // Initialize Ads
+    if (!kIsWeb) {
+      MobileAds.instance.initialize();
+    }
 
-      if (useEmulator) {
-        FirebaseFirestore.instance.useFirestoreEmulator(emulatorHost, 8080);
-        FirebaseAuth.instance.useAuthEmulator(emulatorHost, 9099);
-        FirebaseStorage.instance.useStorageEmulator(emulatorHost, 9199);
-      }
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
 
-      if (kReleaseMode) {
-        debugPrint = (String? message, {int? wrapWidth}) {};
-      }
+    // Enable Firestore caching
+    FirebaseFirestore.instance.settings = const Settings(
+      persistenceEnabled: true,
+      cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+    );
 
-      // Enable Firestore caching (good!)
-      FirebaseFirestore.instance.settings = const Settings(
-        persistenceEnabled: true,
-        cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
-      );
+    // Initialize Firebase Performance
+    FirebasePerformance performance = FirebasePerformance.instance;
 
-      // ✅ Initialize Firebase Performance
-      FirebasePerformance performance = FirebasePerformance.instance;
+    // Firebase emulators (toggle ON/OFF)
+    const useEmulator = true;
+    //final emulatorHost = kIsWeb ? 'localhost' : '10.0.2.2';
+    final emulatorHost = '192.168.68.104';
 
-      runApp(
-        MultiProvider(
+    if (useEmulator) {
+      FirebaseFirestore.instance.useFirestoreEmulator(emulatorHost, 8080);
+      FirebaseAuth.instance.useAuthEmulator(emulatorHost, 9099);
+      FirebaseStorage.instance.useStorageEmulator(emulatorHost, 9199);
+    }
+
+    // Disable debugPrint in release
+    if (kReleaseMode) {
+      debugPrint = (String? message, {int? wrapWidth}) {};
+    }
+
+    // WorkManager init
+    Workmanager().initialize(callbackDispatcher, isInDebugMode: true);
+
+    // For testing: trigger a one-off task immediately
+    Workmanager().registerOneOffTask(
+      "test_location_task",
+      locationTask,
+      initialDelay: Duration(seconds: 5), // optional short delay
+      inputData: {}, // you can pass data if needed
+    );
+
+    // For testing: trigger a one-off task immediately
+    Workmanager().registerOneOffTask(
+      "test_location_task_2",
+      locationTask,
+      initialDelay: Duration(seconds: 300), // optional short delay
+      inputData: {}, // you can pass data if needed
+    );
+
+
+
+    // Schedule periodic background location task
+    Workmanager().registerPeriodicTask(
+      "1",
+      locationTask,
+      frequency: const Duration(minutes: 30),
+    );
+
+    // Initialize notifications
+    await initNotifications();
+
+    runApp(
+      MultiProvider(
         providers: [
           ChangeNotifierProvider(create: (_) => EventProvider()),
         ],
         child: const MyApp(),
-      ),);
-    },
-    (error, stack) {
-     debugPrint('Uncaught error: $error');
-     debugPrint('Stack trace: $stack');
-    },
+      ),
+    );
+  }, (error, stack) {
+    debugPrint('Uncaught error: $error');
+    debugPrint('Stack trace: $stack');
+  });
+}
+
+/// Initialize Flutter Local Notifications (foreground + background support)
+@pragma('vm:entry-point')
+Future<void> initNotifications() async {
+  const AndroidInitializationSettings androidSettings =
+  AndroidInitializationSettings('@mipmap/ic_launcher');
+  const DarwinInitializationSettings iOSSettings = DarwinInitializationSettings(
+    requestSoundPermission: true,
+    requestBadgePermission: true,
+    requestAlertPermission: true,
+  );
+
+  await flutterLocalNotificationsPlugin.initialize(
+    const InitializationSettings(android: androidSettings, iOS: iOSSettings),
+  );
+
+  // Create Android notification channel (required for foreground notifications)
+  await flutterLocalNotificationsPlugin
+      .resolvePlatformSpecificImplementation<
+      AndroidFlutterLocalNotificationsPlugin>()
+      ?.createNotificationChannel(
+    const AndroidNotificationChannel(
+      'event_proximity', // id
+      'Nearby Events', // name
+      description: 'Notifications for nearby events',
+      importance: Importance.high,
+    ),
   );
 }
 
-class MyApp extends StatelessWidget {
+/// Request and handle location permission
+@pragma('vm:entry-point')
+Future<bool> ensureLocationPermission() async {
+  bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+  if (!serviceEnabled) return false;
+
+  LocationPermission permission = await Geolocator.checkPermission();
+  if (permission == LocationPermission.denied) {
+    permission = await Geolocator.requestPermission();
+    if (permission == LocationPermission.denied) return false;
+  }
+
+  if (permission == LocationPermission.deniedForever) return false;
+
+  return true;
+}
+
+/// Main app
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  bool _notifyProximity = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPreferences();
+    _checkLocationPermission();
+
+    // Subscribe device to global topic for notifications
+    FirebaseMessaging.instance.subscribeToTopic('allDevices');
+
+    // Handle foreground messages
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
+      final data = message.data;
+      final businessId = data['businessId'] ?? '';
+
+      // Check local preferences
+      final prefs = await SharedPreferences.getInstance();
+      final showNotification = prefs.getBool('notify_$businessId') ?? true;
+      if (!showNotification) return;
+
+      // Show local notification
+      if (message.notification != null) {
+        flutterLocalNotificationsPlugin.show(
+          message.hashCode,
+          message.notification!.title,
+          message.notification!.body,
+          const NotificationDetails(
+            android: AndroidNotificationDetails(
+              'event_proximity',
+              'Nearby Events',
+              channelDescription: 'Notifications for nearby events',
+              importance: Importance.high,
+              priority: Priority.high,
+            ),
+          ),
+        );
+      }
+    });
+
+    // Optional: handle background/terminated messages if needed
+    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+      // Handle navigation or special logic if user taps notification
+      debugPrint('User tapped notification: ${message.data}');
+    });
+  }
+
+  @pragma('vm:entry-point')
+  Future<void> _loadPreferences() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _notifyProximity = prefs.getBool('notifyProximity') ?? true;
+    });
+  }
+
+  @pragma('vm:entry-point')
+  Future<void> _checkLocationPermission() async {
+    bool granted = await ensureLocationPermission();
+    if (!granted && mounted) {
+      debugPrint('Notification permission granted & mounted');
+      showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text('Location Required'),
+          content: const Text('Enable location to allow background pings.'),
+          actions: [
+            TextButton(
+              onPressed: () async {
+                await Geolocator.openAppSettings();
+                Navigator.pop(context);
+              },
+              child: const Text('Open Settings'),
+            ),
+          ],
+        ),
+      );
+    } else {
+      debugPrint('Notification permission denied');
+    }
+  }
+
+  @pragma('vm:entry-point')
+  void _toggleNotifications(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('notifyProximity', value);
+    setState(() {
+      _notifyProximity = value;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: navigatorKey,
       title: 'StelliesLive',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: AppColors.primaryRed),
         useMaterial3: true,
       ),
-      home: const EventsScreen(),
+      home: EventsScreen(),
       routes: {
         '/admin': (context) => AdminPage(),
         '/about': (context) => const AboutScreen(),
+        '/settings': (context) => const SettingsScreen(), // <- new
       },
+
     );
   }
 }
-
-// class EventsScreen extends StatefulWidget {
-//   const EventsScreen({super.key});
-//
-//   @override
-//   State<EventsScreen> createState() => _EventsScreenState();
-// }
-//
-// class _EventsScreenState extends State<EventsScreen> {
-//   final FirestoreService _firestoreService = FirestoreService();
-//   late Future<List<Event>> _eventsFuture;
-//
-//   @override
-//   void initState() {
-//     super.initState();
-//     _eventsFuture = _firestoreService.getEvents();
-//   }
-//
-//   @override
-//   Widget build(BuildContext context) {
-//     return Scaffold(
-//       appBar: AppBar(title: const Text('Events')),
-//       body: FutureBuilder<List<Event>>(
-//         future: _eventsFuture,
-//         builder: (context, snapshot) {
-//           if (snapshot.connectionState == ConnectionState.waiting) {
-//             return const Center(child: CircularProgressIndicator());
-//           } else if (snapshot.hasError) {
-//             return Center(child: Text('Error: ${snapshot.error}'));
-//           } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-//             return const Center(child: Text('No events available.'));
-//           }
-//
-//           final events = snapshot.data!;
-//           return ListView.builder(
-//             itemCount: events.length,
-//             itemBuilder: (context, index) => EventCard(event: events[index]),
-//           );
-//         },
-//       ),
-//     );
-//   }
-// }

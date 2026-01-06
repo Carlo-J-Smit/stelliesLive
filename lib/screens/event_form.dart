@@ -19,10 +19,18 @@ import '../models/event.dart';
 import '../widgets/event_card.dart';
 import '../providers/event_provider.dart';
 
+enum MapStatus {
+  loading,
+  ready,
+  error,
+}
+
 class EventFormPage extends StatefulWidget {
   final Event? event;
   final EventProvider provider; // <-- pass provider
   final String businessName;
+
+
 
   const EventFormPage({
     super.key,
@@ -42,78 +50,62 @@ class _MapPickerDialog extends StatefulWidget {
 
 class _MapPickerDialogState extends State<_MapPickerDialog> {
   LatLng? _pickedLocation;
-  LatLng? _currentLocation;
-  GoogleMapController? _mapController; // make nullable
-  String? _errorMessage;
-  bool _loading = true;
+  LatLng _center = const LatLng(0, 0);
 
-  // Fallback location (center of map if location unavailable)
-  final LatLng _fallbackLocation = LatLng(0, 0);
+  GoogleMapController? _mapController;
+  String? _errorMessage;
+
+  MapStatus _status = MapStatus.loading;
 
   @override
   void initState() {
     super.initState();
-    _determinePosition();
+    _initLocation();
   }
 
-  Future<void> _determinePosition() async {
+  Future<void> _initLocation() async {
     try {
-      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) {
-        setState(() {
-          _errorMessage = "Location services are disabled.";
-          _currentLocation = _fallbackLocation;
-          _loading = false;
-        });
+      // 1️⃣ Check service
+      if (!await Geolocator.isLocationServiceEnabled()) {
+        _fail("Location services are disabled.");
         return;
       }
 
+      // 2️⃣ Check permission
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied) {
-          setState(() {
-            _errorMessage = "Location permission denied.";
-            _currentLocation = _fallbackLocation;
-            _loading = false;
-          });
-          return;
-        }
       }
 
-      if (permission == LocationPermission.deniedForever) {
-        setState(() {
-          _errorMessage =
-              "Location permissions are permanently denied. You can enable them in settings.";
-          _currentLocation = _fallbackLocation;
-          _loading = false;
-        });
+      if (permission == LocationPermission.denied) {
+        _fail("Location permission denied.");
         return;
       }
 
-      // Get current position
-      Position position = await Geolocator.getCurrentPosition();
-      _currentLocation = LatLng(position.latitude, position.longitude);
-
-      // Only animate camera if map is already created
-      if (_mapController != null) {
-        _mapController!.animateCamera(
-          CameraUpdate.newCameraPosition(
-            CameraPosition(target: _currentLocation!, zoom: 15),
-          ),
-        );
+      if (permission == LocationPermission.deniedForever) {
+        _fail(
+          "Location permission permanently denied.\nOpen settings to enable it.");
+        await Geolocator.openAppSettings();
+        return;
       }
 
-      setState(() {
-        _loading = false;
-      });
+      // 3️⃣ Get position WITH TIMEOUT
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.medium,
+      ).timeout(const Duration(seconds: 8));
+
+      _center = LatLng(position.latitude, position.longitude);
+      _status = MapStatus.ready;
     } catch (e) {
-      setState(() {
-        _errorMessage = "Error getting location: $e";
-        _currentLocation = _fallbackLocation;
-        _loading = false;
-      });
+      _fail("Unable to determine location.\nCheck internet or Location Permission.");
     }
+
+    if (mounted) setState(() {});
+  }
+
+  void _fail(String message) {
+    _errorMessage = message;
+    _status = MapStatus.error;
   }
 
   @override
@@ -123,56 +115,7 @@ class _MapPickerDialogState extends State<_MapPickerDialog> {
       content: SizedBox(
         width: 400,
         height: 400,
-        child:
-            _loading
-                ? const Center(child: CircularProgressIndicator())
-                : Column(
-                  children: [
-                    Expanded(
-                      child: GoogleMap(
-                        initialCameraPosition: CameraPosition(
-                          target: _currentLocation!,
-                          zoom: 15,
-                        ),
-                        onMapCreated: (controller) {
-                          _mapController = controller;
-                          // Animate to current location if it's already set
-                          if (_currentLocation != null) {
-                            _mapController!.animateCamera(
-                              CameraUpdate.newCameraPosition(
-                                CameraPosition(
-                                  target: _currentLocation!,
-                                  zoom: 15,
-                                ),
-                              ),
-                            );
-                          }
-                        },
-                        onTap:
-                            (latLng) =>
-                                setState(() => _pickedLocation = latLng),
-                        markers:
-                            _pickedLocation != null
-                                ? {
-                                  Marker(
-                                    markerId: const MarkerId('picked'),
-                                    position: _pickedLocation!,
-                                  ),
-                                }
-                                : {},
-                      ),
-                    ),
-                    if (_errorMessage != null)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 8.0),
-                        child: Text(
-                          _errorMessage!,
-                          style: const TextStyle(color: Colors.red),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                  ],
-                ),
+        child: _buildContent(),
       ),
       actions: [
         TextButton(
@@ -181,15 +124,148 @@ class _MapPickerDialogState extends State<_MapPickerDialog> {
         ),
         ElevatedButton(
           onPressed:
-              _pickedLocation != null
-                  ? () => Navigator.pop(context, _pickedLocation)
-                  : null,
+          _pickedLocation != null
+              ? () => Navigator.pop(context, _pickedLocation)
+              : null,
           child: const Text("Select"),
         ),
       ],
     );
   }
+
+  Widget _buildContent() {
+    switch (_status) {
+      case MapStatus.loading:
+        return const Center(child: CircularProgressIndicator());
+
+      case MapStatus.error:
+        return _errorUI();
+
+      case MapStatus.ready:
+        return GoogleMap(
+          initialCameraPosition: CameraPosition(
+            target: _center,
+            zoom: 15,
+          ),
+          onMapCreated: (controller) {
+            _mapController = controller;
+          },
+          onTap: (latLng) => setState(() => _pickedLocation = latLng),
+          markers:
+          _pickedLocation != null
+              ? {
+            Marker(
+              markerId: const MarkerId('picked'),
+              position: _pickedLocation!,
+            ),
+          }
+              : {},
+        );
+    }
+  }
+
+  Widget _errorUI() {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        const Icon(Icons.location_off, size: 48, color: Colors.red),
+        const SizedBox(height: 12),
+        Text(
+          _errorMessage ?? "Map unavailable",
+          textAlign: TextAlign.center,
+          style: const TextStyle(color: Colors.red),
+        ),
+        const SizedBox(height: 16),
+        ElevatedButton(
+          onPressed: () {
+            setState(() {
+              _status = MapStatus.loading;
+              _errorMessage = null;
+            });
+            _initLocation();
+          },
+          child: const Text("Retry"),
+        ),
+      ],
+    );
+  }
 }
+
+
+//   @override
+//   Widget build(BuildContext context) {
+//     return AlertDialog(
+//       title: const Text("Pick Location"),
+//       content: SizedBox(
+//         width: 400,
+//         height: 400,
+//         child:
+//             _loading
+//                 ? const Center(child: CircularProgressIndicator())
+//                 : Column(
+//                   children: [
+//                     Expanded(
+//                       child: GoogleMap(
+//                         initialCameraPosition: CameraPosition(
+//                           target: _currentLocation!,
+//                           zoom: 15,
+//                         ),
+//                         onMapCreated: (controller) {
+//                           _mapController = controller;
+//                           // Animate to current location if it's already set
+//                           if (_currentLocation != null) {
+//                             _mapController!.animateCamera(
+//                               CameraUpdate.newCameraPosition(
+//                                 CameraPosition(
+//                                   target: _currentLocation!,
+//                                   zoom: 15,
+//                                 ),
+//                               ),
+//                             );
+//                           }
+//                         },
+//                         onTap:
+//                             (latLng) =>
+//                                 setState(() => _pickedLocation = latLng),
+//                         markers:
+//                             _pickedLocation != null
+//                                 ? {
+//                                   Marker(
+//                                     markerId: const MarkerId('picked'),
+//                                     position: _pickedLocation!,
+//                                   ),
+//                                 }
+//                                 : {},
+//                       ),
+//                     ),
+//                     if (_errorMessage != null)
+//                       Padding(
+//                         padding: const EdgeInsets.only(top: 8.0),
+//                         child: Text(
+//                           _errorMessage!,
+//                           style: const TextStyle(color: Colors.red),
+//                           textAlign: TextAlign.center,
+//                         ),
+//                       ),
+//                   ],
+//                 ),
+//       ),
+//       actions: [
+//         TextButton(
+//           onPressed: () => Navigator.pop(context),
+//           child: const Text("Cancel"),
+//         ),
+//         ElevatedButton(
+//           onPressed:
+//               _pickedLocation != null
+//                   ? () => Navigator.pop(context, _pickedLocation)
+//                   : null,
+//           child: const Text("Select"),
+//         ),
+//       ],
+//     );
+//   }
+// }
 
 class _EventFormPageState extends State<EventFormPage> {
   // ---------------- MODE ----------------
@@ -229,7 +305,12 @@ class _EventFormPageState extends State<EventFormPage> {
   @override
   void initState() {
     super.initState();
-    if (isEdit) _populateFromEvent(widget.event!);
+    if (isEdit) {
+      _populateFromEvent(widget.event!);
+    } else {
+      // Only auto-load business address when creating a new event
+      _loadBusinessHomeAddress();
+    }
   }
 
   void _populateFromEvent(Event e) {
@@ -689,6 +770,31 @@ class _EventFormPageState extends State<EventFormPage> {
     if (kIsWeb) _pickedIconBytes = await img.readAsBytes();
     setState(() {});
   }
+
+  Future<void> _loadBusinessHomeAddress() async {
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('businesses')
+          .doc(widget.businessName) // or businessId if you have one
+          .get();
+
+      if (!snap.exists) return;
+
+      final data = snap.data()!;
+      final location = data['location'];
+
+      if (location == null) return;
+
+      setState(() {
+        _locationLat = (location['lat'] as num?)?.toDouble();
+        _locationLng = (location['lng'] as num?)?.toDouble();
+        _locationAddress = location['address'] as String?;
+      });
+    } catch (e) {
+      debugPrint('Failed to load business location: $e');
+    }
+  }
+
 
   Future<void> _pickDateTime() async {
     final now = DateTime.now();

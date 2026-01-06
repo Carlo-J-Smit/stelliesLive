@@ -20,7 +20,7 @@ class Event {
   final String? busynessLevel;
   final int? likes;
   final int? dislikes;
-  final String business;
+  final String? business;
 
 
 
@@ -70,7 +70,7 @@ class Event {
       likes: data['likes'],
       dislikes: data['dislikes'],
       iconUrl: data['iconUrl'],
-      business: data['business'],
+        business: data['business'] ?? '',
     );
   }
 

@@ -5,15 +5,16 @@ import '../widgets/event_card.dart';
 import '../widgets/nav_bar.dart';
 import '../widgets/sidebar.dart';
 import '../widgets/today_event_rotator.dart';
+
 // import '../widgets/trending_ad_rotator.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+
 //import 'package:google_mobile_ads/google_mobile_ads.dart';
 import '../constants/colors.dart';
 import 'dart:io' show Platform;
 import 'package:url_launcher/url_launcher.dart';
 import 'package:provider/provider.dart';
 import '../providers/event_provider.dart';
-
 
 class EventsScreen extends StatefulWidget {
   const EventsScreen({super.key});
@@ -23,8 +24,8 @@ class EventsScreen extends StatefulWidget {
 }
 
 class _EventsScreenState extends State<EventsScreen> {
-  final FirestoreService _firestoreService = FirestoreService();
-  late Future<List<Event>> _eventsFuture;
+  // final FirestoreService _firestoreService = FirestoreService();
+  // late Future<List<Event>> _eventsFuture;
   List<Event> _allEvents = [];
   List<Event> _filteredEvents = [];
   String _searchQuery = '';
@@ -47,17 +48,15 @@ class _EventsScreenState extends State<EventsScreen> {
   void initState() {
     super.initState();
 
-    _eventsFuture = _firestoreService.getEvents().then((events) {
-      // Store events in provider
-      Provider.of<EventProvider>(context, listen: false).setEvents(events);
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final provider = Provider.of<EventProvider>(context, listen: false);
 
-      // Also store locally in this page
-      _allEvents = events;
+      if (provider.allEvents.isEmpty) {
+        await provider.reloadEvents();
+      }
 
-      // Apply any local filters / search
+      _allEvents = provider.allEvents;
       _applyFilters();
-
-      return events;
     });
 
     if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
@@ -65,6 +64,16 @@ class _EventsScreenState extends State<EventsScreen> {
     }
   }
 
+  Future<void> _refreshEvents() async {
+    final provider = Provider.of<EventProvider>(context, listen: false);
+
+    await provider.reloadEvents();
+
+    setState(() {
+      _allEvents = provider.allEvents;
+      _applyFilters();
+    });
+  }
 
   // void preloadNativeAds() {
   //   for (int i = 0; i < _maxAds; i++) {
@@ -93,16 +102,18 @@ class _EventsScreenState extends State<EventsScreen> {
   void _applyFilters() {
     setState(() {
       final lowerQuery = _searchController.text.toLowerCase();
-      _filteredEvents = _allEvents.where((event) {
-        final matchesSearch =
-            event.title.toLowerCase().contains(lowerQuery) ||
+      _filteredEvents =
+          _allEvents.where((event) {
+            final matchesSearch =
+                event.title.toLowerCase().contains(lowerQuery) ||
                 event.venue.toLowerCase().contains(lowerQuery);
-        final matchesCategory =
-            _filterType == 'All' || event.category == _filterType;
-        final matchesTag =
-            _selectedTag == 'All' || (event.tag?.contains(_selectedTag) ?? false);
-        return matchesSearch && matchesCategory && matchesTag;
-      }).toList();
+            final matchesCategory =
+                _filterType == 'All' || event.category == _filterType;
+            final matchesTag =
+                _selectedTag == 'All' ||
+                (event.tag?.contains(_selectedTag) ?? false);
+            return matchesSearch && matchesCategory && matchesTag;
+          }).toList();
     });
   }
 
@@ -254,47 +265,47 @@ class _EventsScreenState extends State<EventsScreen> {
                       ),
 
                     Expanded(
-                      // child: Padding(
-                      //   padding: const EdgeInsets.all(16),
-                      child: FutureBuilder<List<Event>>(
-                        future: _eventsFuture,
-                        builder: (context, snapshot) {
-                          if (snapshot.connectionState ==
-                              ConnectionState.waiting) {
+                      child: Consumer<EventProvider>(
+                        builder: (context, eventProvider, _) {
+                          if (eventProvider.isLoading &&
+                              eventProvider.allEvents.isEmpty) {
                             return const Center(
                               child: CircularProgressIndicator(),
                             );
-                          } else if (snapshot.hasError) {
-                            return Center(
-                              child: Text('Error: ${snapshot.error}'),
-                            );
-                          } else {
-                            final now = DateTime.now();
-                            final today =
-                                [
-                                  'monday',
-                                  'tuesday',
-                                  'wednesday',
-                                  'thursday',
-                                  'friday',
-                                  'saturday',
-                                  'sunday',
-                                ][now.weekday - 1];
+                          }
 
-                            final todayEvents =
-                                _filteredEvents.where((event) {
-                                  if (event.recurring == true &&
-                                      event.dayOfWeek == today)
-                                    return true;
-                                  if (event.dateTime != null) {
-                                    return event.dateTime.year == now.year &&
-                                        event.dateTime.month == now.month &&
-                                        event.dateTime.day == now.day;
-                                  }
-                                  return false;
-                                }).toList();
+                          _allEvents = eventProvider.allEvents;
 
-                            return ListView(
+                          final now = DateTime.now();
+                          final today =
+                              [
+                                'monday',
+                                'tuesday',
+                                'wednesday',
+                                'thursday',
+                                'friday',
+                                'saturday',
+                                'sunday',
+                              ][now.weekday - 1];
+
+                          final todayEvents =
+                              _filteredEvents.where((event) {
+                                if (event.recurring == true &&
+                                    event.dayOfWeek == today) {
+                                  return true;
+                                }
+                                if (event.dateTime != null) {
+                                  return event.dateTime.year == now.year &&
+                                      event.dateTime.month == now.month &&
+                                      event.dateTime.day == now.day;
+                                }
+                                return false;
+                              }).toList();
+
+                          return RefreshIndicator(
+                            onRefresh: _refreshEvents,
+                            child: ListView(
+                              physics: const AlwaysScrollableScrollPhysics(),
                               padding:
                                   isNarrow
                                       ? const EdgeInsets.only(bottom: 16)
@@ -302,44 +313,28 @@ class _EventsScreenState extends State<EventsScreen> {
                               children: [
                                 if (todayEvents.isNotEmpty)
                                   TodayEventRotator(events: todayEvents),
-                                // else if (!kIsWeb &&
-                                //     (Platform.isAndroid || Platform.isIOS))
-                                //   const TrendingAdRotator(),
 
-                                // else
-                                //   const Padding(
-                                //     padding: EdgeInsets.symmetric(vertical: 24),
-                                //     child: Center(
-                                //       child: Text(
-                                //         'No events today.',
-                                //         style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-                                //       ),
-                                //     ),
-                                //   ),
                                 const SizedBox(height: 20),
 
-                                Builder(
-                                  builder:
-                                      (context) => Row(
-                                        children: [
-                                          if (isNarrow)
-                                            IconButton(
-                                              icon: const Icon(Icons.tune),
-                                              onPressed:
-                                                  () =>
-                                                      Scaffold.of(
-                                                        context,
-                                                      ).openDrawer(),
-                                            ),
-                                          const Text(
-                                            'All Events',
-                                            style: TextStyle(
-                                              fontSize: 20,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ],
+                                Row(
+                                  children: [
+                                    if (isNarrow)
+                                      IconButton(
+                                        icon: const Icon(Icons.tune),
+                                        onPressed:
+                                            () =>
+                                                Scaffold.of(
+                                                  context,
+                                                ).openDrawer(),
                                       ),
+                                    const Text(
+                                      'All Events',
+                                      style: TextStyle(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
                                 ),
 
                                 const SizedBox(height: 10),
@@ -347,9 +342,13 @@ class _EventsScreenState extends State<EventsScreen> {
                                 if (_filteredEvents.isEmpty)
                                   Center(
                                     child: Padding(
-                                      padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 16),
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 32,
+                                        horizontal: 16,
+                                      ),
                                       child: Column(
-                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
                                         children: [
                                           const Text(
                                             'No events match your search.',
@@ -366,17 +365,28 @@ class _EventsScreenState extends State<EventsScreen> {
                                           const SizedBox(height: 8),
                                           ElevatedButton.icon(
                                             onPressed: () {
-                                              const url = 'https://docs.google.com/forms/d/e/1FAIpQLSe1tEAuqDT4VEjqggP633DLwzqsI3xpEKaP_su4AI_K4KqooA/viewform?usp=dialog';
+                                              const url =
+                                                  'https://docs.google.com/forms/d/e/1FAIpQLSe1tEAuqDT4VEjqggP633DLwzqsI3xpEKaP_su4AI_K4KqooA/viewform?usp=dialog';
                                               launchUrl(Uri.parse(url));
                                             },
-                                            icon: const Icon(Icons.add_circle_outline),
-                                            label: const Text('Request an Event'),
+                                            icon: const Icon(
+                                              Icons.add_circle_outline,
+                                            ),
+                                            label: const Text(
+                                              'Request an Event',
+                                            ),
                                             style: ElevatedButton.styleFrom(
-                                              backgroundColor: AppColors.primaryRed,
+                                              backgroundColor:
+                                                  AppColors.primaryRed,
                                               foregroundColor: Colors.white,
-                                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 20,
+                                                    vertical: 12,
+                                                  ),
                                               shape: RoundedRectangleBorder(
-                                                borderRadius: BorderRadius.circular(12),
+                                                borderRadius:
+                                                    BorderRadius.circular(12),
                                               ),
                                             ),
                                           ),
@@ -384,16 +394,14 @@ class _EventsScreenState extends State<EventsScreen> {
                                       ),
                                     ),
                                   )
-
                                 else
                                   ..._buildEventListWithAds(),
                               ],
-                            );
-                          }
+                            ),
+                          );
                         },
                       ),
                     ),
-                    //),
                   ],
                 ),
               ),

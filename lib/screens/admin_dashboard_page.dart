@@ -59,7 +59,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     setState(() {
       _filteredEvents = _events.where((event) {
         // Always filter by business
-        if (event.business.toLowerCase() != widget.businessName.toLowerCase()) {
+        if ((event.business ?? '').toLowerCase() != widget.businessName.toLowerCase()) {
           return false;
         }
 
