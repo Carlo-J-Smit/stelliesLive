@@ -3,12 +3,14 @@ import {
   onDocumentUpdated,
 } from "firebase-functions/v2/firestore";
 import { initializeApp } from "firebase-admin/app";
-import { getFirestore, Timestamp } from "firebase-admin/firestore";
+import { getFirestore, Timestamp, FieldValue } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
+import { getMessaging } from "firebase-admin/messaging";
 
 initializeApp();
 const db = getFirestore();
 const storageBucket = getStorage().bucket();
+const messaging = getMessaging();
 
 
 const GROUP_RADIUS_METERS = 100;
@@ -274,6 +276,93 @@ export const cleanUpOldEvents = onDocumentUpdated(
       } catch (err) {
       }
     } else {
+    }
+  }
+);
+
+
+export const sendNotification = onDocumentCreated(
+  {
+    document: "notifications/{notificationId}",
+    region: "africa-south1",
+    memory: "256MiB",
+    cpu: 1,
+  },
+  async (event) => {
+    const snap = event.data;
+    if (!snap) return;
+
+    const data = snap.data();
+    const ref = snap.ref;
+
+    // Safety check
+    if (!data?.title || !data?.message) {
+      await ref.update({
+        status: "Failed",
+        error: "Missing title or message",
+        processedAt: FieldValue.serverTimestamp(),
+      });
+      return;
+    }
+
+    // 🔔 Topic strategy (cheap + scalable)
+    // Everyone subscribes to:
+    //   business_<businessName>
+    // Optional:
+    //   event_<eventId>
+    const topics: string[] = [];
+
+    if (data.business) {
+      topics.push(`business_${data.business}`);
+    }
+
+    if (data.eventId) {
+      topics.push(`event_${data.eventId}`);
+    }
+
+    if (!topics.length) {
+      await ref.update({
+        status: "Failed",
+        error: "No topic resolved",
+        processedAt: FieldValue.serverTimestamp(),
+      });
+      return;
+    }
+
+    const message = {
+      notification: {
+        title: data.title,
+        body: data.message,
+      },
+      data: {
+        type: data.type ?? "General",
+        eventId: data.eventId ?? "",
+        business: data.business ?? "",
+      },
+    };
+
+    try {
+      // Send to ALL topics (one call per topic)
+      await Promise.all(
+        topics.map(topic =>
+          messaging.send({
+            ...message,
+            topic,
+          })
+        )
+      );
+
+      await ref.update({
+        status: "Sent",
+        processedAt: FieldValue.serverTimestamp(),
+      });
+
+    } catch (err: any) {
+      await ref.update({
+        status: "Failed",
+        error: err.message ?? String(err),
+        processedAt: FieldValue.serverTimestamp(),
+      });
     }
   }
 );

@@ -240,6 +240,7 @@ class _MyAppState extends State<MyApp> {
     // Subscribe device to global topic for notifications
     FirebaseMessaging.instance.subscribeToTopic('allDevices');
 
+
     // Handle foreground messages
     FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
       final data = message.data;

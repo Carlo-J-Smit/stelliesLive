@@ -9,6 +9,7 @@ import 'dart:math';
 import '../widgets/nav_bar.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../screens/notifications/notifications_tab.dart';
 
 
 class AdminDashboardPage extends StatefulWidget {
@@ -153,6 +154,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                   children: [
                     _sidebarItem("Events", 0),
                     _sidebarItem("Analytics", 1),
+                    _sidebarItem("Notifications", 3),
                     _sidebarItem("Settings", 2),
                   ],
                 ),
@@ -178,7 +180,9 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                   ? Icons.event
                   : index == 1
                   ? Icons.bar_chart
-                  : Icons.settings,
+                  : index == 2
+                  ? Icons.settings
+                  : Icons.notifications,
               color: selected ? AppColors.accent : AppColors.darkInteract,
             ),
             const SizedBox(width: 10),
@@ -342,6 +346,9 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         break;
       case 2:
         content = AccountManagementTab(businessName: widget.businessName);
+        break;
+      case 3:
+        content = NotificationsTab(businessName: widget.businessName, events: _events);
         break;
       default:
         content = const SizedBox.shrink();
@@ -954,5 +961,11 @@ class _AccountManagementTabState extends State<AccountManagementTab> {
     );
   }
 }
+
+
+// notification widget
+
+
+
 
 
