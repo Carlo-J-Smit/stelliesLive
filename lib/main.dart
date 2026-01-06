@@ -13,6 +13,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:workmanager/workmanager.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:provider/provider.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+
 
 import 'firebase_options.dart';
 import 'screens/events_screen.dart';
@@ -82,7 +84,6 @@ void callbackDispatcher() {
     return Future.value(true);
   });
 }
-
 
 
 
@@ -230,7 +231,11 @@ class _MyAppState extends State<MyApp> {
   void initState() {
     super.initState();
     _loadPreferences();
-    _checkLocationPermission();
+
+    // Request permissions AFTER first frame
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _requestPermissionsOnLaunch();
+    });
 
     // Subscribe device to global topic for notifications
     FirebaseMessaging.instance.subscribeToTopic('allDevices');
@@ -269,6 +274,60 @@ class _MyAppState extends State<MyApp> {
       // Handle navigation or special logic if user taps notification
       debugPrint('User tapped notification: ${message.data}');
     });
+  }
+
+  Future<void> _requestPermissionsOnLaunch() async {
+    // --- Location permission ---
+    bool locationGranted = await ensureLocationPermission();
+    if (!locationGranted && mounted) {
+      showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text('Location Required'),
+          content: const Text(
+              'Enable location to allow background event notifications.'),
+          actions: [
+            TextButton(
+              onPressed: () async {
+                await Geolocator.openAppSettings();
+                Navigator.pop(context);
+              },
+              child: const Text('Open Settings'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // --- Notification permission ---
+    FirebaseMessaging messaging = FirebaseMessaging.instance;
+    NotificationSettings settings = await messaging.requestPermission(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+
+    if (settings.authorizationStatus == AuthorizationStatus.denied && mounted) {
+      showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text('Notifications Required'),
+          content: const Text('Enable notifications to receive event alerts.'),
+          actions: [
+            TextButton(
+              onPressed: () async {
+                await openAppSettings();
+                Navigator.pop(context);
+              },
+              child: const Text('Open Settings'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    debugPrint(
+        'Permissions on launch — Location: $locationGranted, Notifications: ${settings.authorizationStatus}');
   }
 
   @pragma('vm:entry-point')

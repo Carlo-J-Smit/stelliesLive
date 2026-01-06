@@ -15,7 +15,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _notifyProximity = true;
   bool _locationGranted = false;
 
-  List<Map<String, String>> _businesses = []; // [{id: docId, name: name}]
+  List<Map<String, String>> _businesses = []; // List of {id: docId, name: name}
   Map<String, bool> _businessNotifications = {};
 
   String _searchQuery = '';
@@ -43,18 +43,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
       final snapshot =
       await FirebaseFirestore.instance.collection('businesses').get();
 
-      List<Map<String, String>> businessList = snapshot.docs
-          .map((doc) => {
-        'id': doc.id,
-        'name': doc.data()['name'] as String? ?? 'Unnamed',
-      })
-          .toList();
+      // Convert each doc to {id, name}
+      List<Map<String, String>> businessList = snapshot.docs.map((doc) {
+        final data = doc.data();
+        return {
+          'id': doc.id,
+          'name': data['name'] as String? ?? 'Unnamed',
+        };
+      }).toList();
 
-      // Load local preferences for each business
+      // Load local notification preferences
       final prefs = await SharedPreferences.getInstance();
       Map<String, bool> notifications = {};
       for (var b in businessList) {
-        notifications[b['id']!] = prefs.getBool('notify_${b['id']}') ?? true;
+        final id = b['id']!;
+        notifications[id] = prefs.getBool('notify_$id') ?? true;
       }
 
       setState(() {
@@ -77,8 +80,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
 
     LocationPermission permission = await Geolocator.checkPermission();
-    setState(() => _locationGranted = permission == LocationPermission.always ||
-        permission == LocationPermission.whileInUse);
+    setState(() => _locationGranted =
+        permission == LocationPermission.always ||
+            permission == LocationPermission.whileInUse);
   }
 
   /// Request location permission
@@ -114,7 +118,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     setState(() => _notifyProximity = value);
   }
 
-  /// Toggle business notification preference
+  /// Toggle individual business notifications
   void _toggleBusinessNotification(String businessId, bool value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('notify_$businessId', value);
@@ -123,6 +127,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Filter businesses based on search
     final filteredBusinesses = _businesses
         .where((b) => b['name']!
         .toLowerCase()
@@ -151,8 +156,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   children: [
                     const Text(
                       "Location Settings",
-                      style:
-                      TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                          fontSize: 18, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 12),
                     ListTile(
@@ -164,7 +169,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           'Used for background event proximity detection'),
                       trailing: ElevatedButton(
                         onPressed: _requestLocationPermission,
-                        child: Text(_locationGranted ? 'Change' : 'Enable'),
+                        child: Text(_locationGranted ? 'Enabled' : 'Enable'),
                       ),
                     ),
                   ],
@@ -185,8 +190,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   children: [
                     const Text(
                       "Notifications",
-                      style:
-                      TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                          fontSize: 18, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 12),
                     SwitchListTile(
@@ -214,8 +219,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   children: [
                     const Text(
                       "Business Notifications",
-                      style:
-                      TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                          fontSize: 18, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 12),
                     TextField(
