@@ -292,6 +292,7 @@ class _EventFormPageState extends State<EventFormPage> {
   // ---------------- UI ----------------
   bool _isSubmitting = false;
   String? _error;
+  Map<String, String?> _fieldErrors = {};
 
   @override
   void initState() {
@@ -564,31 +565,44 @@ class _EventFormPageState extends State<EventFormPage> {
         TextField(
           controller: _titleController,
           maxLength: 40,
-          decoration: const InputDecoration(labelText: 'Title'),
+          decoration: InputDecoration(
+            labelText: 'Title',
+            errorText: _fieldErrors['title'], // <-- show inline error
+          ),
+          onChanged: (_) => _validateFields(), // validate on typing
         ),
+
         TextField(
           controller: _venueController,
           maxLength: 40,
-          decoration: const InputDecoration(labelText: 'Venue'),
+          decoration: InputDecoration(
+            labelText: 'Venue',
+            errorText: _fieldErrors['venue'],
+          ),
+          onChanged: (_) => _validateFields(),
         ),
+
         const SizedBox(height: 10),
         DropdownButtonFormField<String>(
-          value:
-              _categoryController.text.isNotEmpty
-                  ? _categoryController.text
-                  : null,
-          items:
-              const [
-                'Live Music',
-                'Games',
-                'Karaoke',
-                'Market',
-                'Sport',
-                'Other',
-              ].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
-          onChanged: (v) => _categoryController.text = v ?? '',
-          decoration: const InputDecoration(labelText: 'Category'),
+          value: _categoryController.text.isNotEmpty ? _categoryController.text : null,
+          items: const [
+            'Live Music',
+            'Games',
+            'Karaoke',
+            'Market',
+            'Sport',
+            'Other',
+          ].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+          onChanged: (v) {
+            _categoryController.text = v ?? '';
+            _validateFields();
+          },
+          decoration: InputDecoration(
+            labelText: 'Category',
+            errorText: _fieldErrors['category'],
+          ),
         ),
+
       ],
     );
   }
@@ -613,10 +627,12 @@ class _EventFormPageState extends State<EventFormPage> {
           inputFormatters: [
             FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
           ],
-          decoration: const InputDecoration(
+          decoration: InputDecoration(
             labelText: 'Price',
             prefixText: 'R ',
+            errorText: _fieldErrors['price'],
           ),
+          onChanged: (_) => _validateFields(),
         ),
         const SizedBox(height: 12),
         DropdownButtonFormField<String>(
@@ -702,6 +718,15 @@ class _EventFormPageState extends State<EventFormPage> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(locationText),
+        if (_fieldErrors['location'] != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(
+              _fieldErrors['location']!,
+              style: const TextStyle(color: Colors.red, fontSize: 12),
+            ),
+          ),
+
         const SizedBox(height: 10),
         TextButton.icon(
           icon: const Icon(Icons.location_on),
@@ -823,28 +848,53 @@ class _EventFormPageState extends State<EventFormPage> {
   }
 
   Future<void> _pickDateTime() async {
-    final now = DateTime.now();
-    final date = await showDatePicker(
-      context: context,
-      firstDate: now,
-      lastDate: DateTime(now.year + 2),
-      initialDate: now,
-    );
-    if (date == null) return;
+    TimeOfDay? time;
 
-    final time = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay.now(),
-    );
-    if (time == null) return;
+    if (_isRecurring) {
+      // Only pick time
+      time = await showTimePicker(
+        context: context,
+        initialTime: TimeOfDay.fromDateTime(
+          _selectedDateTime ?? DateTime.now(),
+        ),
+      );
+      if (time == null) return;
 
-    _selectedDateTime = DateTime(
-      date.year,
-      date.month,
-      date.day,
-      time.hour,
-      time.minute,
-    );
+      // For recurring events, we only store the time (using today as dummy date)
+      final now = DateTime.now();
+      _selectedDateTime = DateTime(
+        now.year,
+        now.month,
+        now.day,
+        time.hour,
+        time.minute,
+      );
+    } else {
+      // Pick full date & time
+      final now = DateTime.now();
+      final date = await showDatePicker(
+        context: context,
+        firstDate: now,
+        lastDate: DateTime(now.year + 2),
+        initialDate: _selectedDateTime ?? now,
+      );
+      if (date == null) return;
+
+      time = await showTimePicker(
+        context: context,
+        initialTime: TimeOfDay.fromDateTime(_selectedDateTime ?? now),
+      );
+      if (time == null) return;
+
+      _selectedDateTime = DateTime(
+        date.year,
+        date.month,
+        date.day,
+        time.hour,
+        time.minute,
+      );
+    }
+
     setState(() {});
   }
 
@@ -884,6 +934,72 @@ class _EventFormPageState extends State<EventFormPage> {
     }
   }
 
+  void _validateFields() {
+    _fieldErrors.clear();
+
+    if (_titleController.text.trim().isEmpty) {
+      _fieldErrors['title'] = 'Title is required';
+    }
+    if (_venueController.text.trim().isEmpty) {
+      _fieldErrors['venue'] = 'Venue is required';
+    }
+    if (_categoryController.text.trim().isEmpty) {
+      _fieldErrors['category'] = 'Category is required';
+    }
+    if (_priceController.text.trim().isEmpty) {
+      _fieldErrors['price'] = 'Price is required';
+    }
+
+    if (_isRecurring) {
+      if (_selectedDayOfWeek == null) {
+        _fieldErrors['dayOfWeek'] =
+            'Day of week is required for recurring events';
+      }
+    } else {
+      if (_selectedDateTime == null) {
+        _fieldErrors['dateTime'] = 'Date & Time is required';
+      }
+    }
+
+    if (_locationLat == null || _locationLng == null) {
+      _fieldErrors['location'] = 'Location is required';
+    }
+
+    setState(() {});
+  }
+
+  // --- HELPER TO SHOW VALIDATION ERRORS ---
+  void _showValidationErrors(List<String> errors) {
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: const Text("Please fix the following errors"),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children:
+                  errors
+                      .map(
+                        (e) => Row(
+                          children: [
+                            const Icon(Icons.error_outline, color: Colors.red),
+                            const SizedBox(width: 8),
+                            Expanded(child: Text(e)),
+                          ],
+                        ),
+                      )
+                      .toList(),
+            ),
+            actions: [
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text("OK"),
+              ),
+            ],
+          ),
+    );
+  }
+
   Future<void> _submitEvent() async {
     setState(() {
       _isSubmitting = true;
@@ -893,20 +1009,39 @@ class _EventFormPageState extends State<EventFormPage> {
     });
 
     try {
-      // --- Validations ---
+      // --- VALIDATION ---
+      List<String> missingFields = [];
+
       if (_titleController.text.trim().isEmpty)
-        throw Exception('Title required');
+        missingFields.add("Title (required)");
       if (_venueController.text.trim().isEmpty)
-        throw Exception('Venue required');
+        missingFields.add("Venue (required)");
       if (_categoryController.text.trim().isEmpty)
-        throw Exception('Category required');
-      if (!_isRecurring && _selectedDateTime == null)
-        throw Exception('Select date & time');
-      if (_isRecurring && _selectedDayOfWeek == null)
-        throw Exception('Select day of week');
-      if (_priceController.text.trim().isEmpty) throw Exception('Enter price');
+        missingFields.add("Category (required)");
+      if (_priceController.text.trim().isEmpty)
+        missingFields.add("Price (required)");
+
+      if (_isRecurring) {
+        if (_selectedDayOfWeek == null)
+          missingFields.add("Day of week (required for recurring events)");
+      } else {
+        if (_selectedDateTime == null)
+          missingFields.add("Date & Time (required)");
+      }
+
       if (_locationLat == null || _locationLng == null)
-        throw Exception('Select location');
+        missingFields.add("Location (required)");
+
+      if (missingFields.isNotEmpty) {
+        _showValidationErrors(missingFields);
+        return; // stop submission
+      }
+
+      _validateFields();
+      if (_fieldErrors.isNotEmpty) {
+        setState(() => _isSubmitting = false);
+        return; // stop submission
+      }
 
       final previewData = {
         'title': _titleController.text.trim(),
