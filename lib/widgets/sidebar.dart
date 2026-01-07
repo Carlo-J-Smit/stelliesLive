@@ -90,7 +90,10 @@ class Sidebar extends StatelessWidget {
                     DropdownButtonFormField<String>(
                       value: selectedFilter,
                       items: const [
-                        DropdownMenuItem(value: 'All', child: Text('All Categories')),
+                        DropdownMenuItem(
+                          value: 'All',
+                          child: Text('All Categories'),
+                        ),
                         DropdownMenuItem(value: 'Games', child: Text('Games')),
                         DropdownMenuItem(
                           value: 'Karaoke',
@@ -132,9 +135,16 @@ class Sidebar extends StatelessWidget {
                           value: 'All',
                           child: const Text('All Tags'),
                         ),
-                        ...['18+', 'VIP', 'Sold Out', 'Free Entry', 'Popular', 'Outdoor', 'Limited Seats']
-                            .map(
-                              (tag) => DropdownMenuItem(
+                        ...[
+                          '18+',
+                          'VIP',
+                          'Sold Out',
+                          'Free Entry',
+                          'Popular',
+                          'Outdoor',
+                          'Limited Seats',
+                        ].map(
+                          (tag) => DropdownMenuItem(
                             value: tag,
                             child: Row(
                               children: [
@@ -157,7 +167,6 @@ class Sidebar extends StatelessWidget {
                       dropdownColor: AppColors.darkInteract,
                       style: const TextStyle(color: AppColors.textLight),
                     ),
-
 
                     const SizedBox(height: 5),
 
@@ -204,13 +213,25 @@ class Sidebar extends StatelessWidget {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
+                        // InkWell(
+                        //   onTap:
+                        //       () => _launchUrl(
+                        //         'https://www.linkedin.com/in/your-profile',
+                        //       ),
+                        //   child: const FaIcon(
+                        //     FontAwesomeIcons.linkedin,
+                        //     size: 32,
+                        //     color: AppColors.darkInteract,
+                        //   ),
+                        // ),
+                        // const SizedBox(width: 16),
                         InkWell(
                           onTap:
                               () => _launchUrl(
-                                'https://www.linkedin.com/in/your-profile',
+                                'https://www.instagram.com/stellieslive/',
                               ),
                           child: const FaIcon(
-                            FontAwesomeIcons.linkedin,
+                            FontAwesomeIcons.instagram,
                             size: 32,
                             color: AppColors.darkInteract,
                           ),
@@ -227,14 +248,14 @@ class Sidebar extends StatelessWidget {
                             color: AppColors.darkInteract,
                           ),
                         ),
+
                         const SizedBox(width: 16),
+                        // Donate / Buy Me a Coffee
                         InkWell(
                           onTap:
-                              () => _launchUrl(
-                                'https://www.instagram.com/stellieslive/',
-                              ),
+                              () => _launchUrl('https://coff.ee/stellieslive'),
                           child: const FaIcon(
-                            FontAwesomeIcons.instagram,
+                            FontAwesomeIcons.heart,
                             size: 32,
                             color: AppColors.darkInteract,
                           ),

@@ -237,48 +237,46 @@ export const cleanUpOldEvents = onDocumentUpdated(
     memory: "256MiB",
     cpu: 1,
   },
-  async (event) => {
+  async () => {
+    const now = Date.now();
+    const cutoff = Timestamp.fromMillis(now - 12 * 60 * 60 * 1000); // 24h ago
 
-    const change = event.data;
-    if (!change) return; // TS-safe: event.data can be undefined
+    // Fetch all single-use events older than 24h
+    const oldEventsSnap = await db
+      .collection("events")
+      .where("recurring", "==", false)
+      .where("dateTime", "<", cutoff)
+      .get();
 
-    const after = change.after; // OK now
-    const eventId = after.id;
-    const docData = after.data();
+    if (oldEventsSnap.empty) return;
 
-    if (!docData) {
-      return;
-    }
+    for (const doc of oldEventsSnap.docs) {
+      const eventId = doc.id;
 
-    const eventTime = docData.dateTime?.toMillis?.();
-
-    // Only delete if single-use and event was >24h ago
-    if (!docData.recurring && eventTime && eventTime < Date.now() - 24 * 60 * 60 * 1000) {
       const foldersToDelete = [
         `event_pics/${eventId}/`,
-        `event_icon/${eventId}/`
+        `event_icon/${eventId}/`,
       ];
-      let deletedFiles = 0;
 
       try {
-        for (const folderPrefix of foldersToDelete) {
-          const [files] = await storageBucket.getFiles({ prefix: folderPrefix });
+        // Delete storage files
+        for (const prefix of foldersToDelete) {
+          const [files] = await storageBucket.getFiles({ prefix });
           for (const file of files) {
-            try {
-              await file.delete();
-              deletedFiles++;
-            } catch (err) {
-            }
+            try { await file.delete(); } catch (err) { }
           }
         }
 
-        await after.ref.delete();
+        // Delete Firestore document
+        await doc.ref.delete();
+        console.log(`Deleted old event ${eventId}`);
       } catch (err) {
+        console.error(`Failed to delete old event ${eventId}`, err);
       }
-    } else {
     }
   }
 );
+
 
 
 export const sendNotification = onDocumentCreated(

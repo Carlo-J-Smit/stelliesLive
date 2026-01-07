@@ -166,12 +166,16 @@ class _ActivityScreenState extends State<ActivityScreen> {
 
       final snapshot = await FirebaseFirestore.instance.collection('events').get();
 
+      // final List<Event> freshEvents = snapshot.docs.map((doc) {
+      //   return Event.fromMap(doc.id, doc.data() as Map<String, dynamic>);
+      // }).toList();
+
       final List<Event> freshEvents = snapshot.docs.map((doc) {
         return Event.fromMap(doc.id, doc.data() as Map<String, dynamic>);
       }).where((event) {
-        if (event.dateTime == null) return false; // skip if no timestamp
-        final diff = now.difference(event.dateTime!);
-        return diff.inHours <= 24; // only show events in last 24h or future
+        // Only include events updated in the last 24h
+        return event.dateTime != null &&
+            now.difference(event.dateTime!).inHours <= 12;
       }).toList();
 
 
