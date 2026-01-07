@@ -327,7 +327,7 @@ export const sendNotification = onDocumentCreated(
         processedAt: FieldValue.serverTimestamp(),
       });
 
-      console.log(`Notification sent to topic: ${topic}`);
+      
     } catch (err: any) {
       console.error(`Failed to send notification to ${topic}`, err);
 

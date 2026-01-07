@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 final List<String> _notificationTypes = [
   'Update',
@@ -25,6 +26,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _notifyProximity = true;
   bool _locationGranted = false;
   SharedPreferences? _prefs;
+  Map<String, Map<String, bool>> _businessTypeNotifications = {};
+// structure: { businessId: { type: true/false } }
 
 
   List<Map<String, String>> _businesses = []; // List of {id: docId, name: name}
@@ -71,9 +74,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
         final enabled = prefs.getBool(key) ?? true;
         final topic = _topicFor(id, type);
         if (enabled) {
-          await FirebaseMessaging.instance.subscribeToTopic(topic);
+          if (!kIsWeb) {
+            await FirebaseMessaging.instance.subscribeToTopic(topic);
+          }
         } else {
-          await FirebaseMessaging.instance.unsubscribeFromTopic(topic);
+          if (!kIsWeb) {
+            await FirebaseMessaging.instance.unsubscribeFromTopic(topic);
+          }
         }
       }
     }
@@ -89,14 +96,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final topic = _topicFor(businessId, type);
 
     try {
-      if (value) {
-        await FirebaseMessaging.instance.subscribeToTopic(topic);
+      if (!kIsWeb) {
+        if (value) {
+          await FirebaseMessaging.instance.subscribeToTopic(topic);
+        } else {
+          await FirebaseMessaging.instance.unsubscribeFromTopic(topic);
+        }
       } else {
-        await FirebaseMessaging.instance.unsubscribeFromTopic(topic);
+        debugPrint('Web platform: skipping topic subscription $topic');
+        // Optional: store preference locally or send to server for your own tracking
       }
 
       await prefs.setBool('notify_${businessId}_${type.toLowerCase()}', value);
-
       setState(() {});
     } catch (e) {
       debugPrint('Failed toggling $topic: $e');
@@ -118,6 +129,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
           'name': data['name'] as String? ?? 'Unnamed',
         };
       }).toList();
+
+      for (var b in businessList) {
+        final id = b['id']!;
+        _businessTypeNotifications[id] = {};
+        for (var type in _notificationTypes) {
+          _businessTypeNotifications[id]![type] =
+              _prefs?.getBool('notify_${id}_$type') ?? true;
+        }
+      }
+
+
+      debugPrint('Fetched businesses: $businessList');
+
 
       // // Load local notification preferences
       // final prefs = await SharedPreferences.getInstance();
@@ -197,9 +221,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
         final topic = _topicFor(id, type);
 
         if (value && enabled) {
-          await FirebaseMessaging.instance.subscribeToTopic(topic);
+          if (!kIsWeb) {
+            await FirebaseMessaging.instance.subscribeToTopic(topic);
+          }
+
         } else {
-          await FirebaseMessaging.instance.unsubscribeFromTopic(topic);
+          if (!kIsWeb) {
+            await FirebaseMessaging.instance.unsubscribeFromTopic(topic);
+          }
         }
       }
     }
@@ -251,9 +280,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
         final topic = _topicFor(id, type);
 
         if (_notifyProximity && enabled) {
-          await FirebaseMessaging.instance.subscribeToTopic(topic);
+          if (!kIsWeb) {
+            await FirebaseMessaging.instance.subscribeToTopic(topic);
+          }
         } else {
-          await FirebaseMessaging.instance.unsubscribeFromTopic(topic);
+          if (!kIsWeb) {
+            await FirebaseMessaging.instance.unsubscribeFromTopic(topic);
+          }
         }
       }
     }
@@ -406,27 +439,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-                          children: [
-                            if (_prefs == null)
-                              const Padding(
-                                padding: EdgeInsets.all(8.0),
-                                child: CircularProgressIndicator(),
-                              )
-                            else
-                              ..._notificationTypes.map((type) {
-                                final enabled =
-                                    _prefs!.getBool('notify_${id}_$type') ?? true;
+                          children: _notificationTypes.map((type) {
+                            final enabled = _businessTypeNotifications[id]![type]!;
 
-                                return SwitchListTile(
-                                  dense: true,
-                                  contentPadding: const EdgeInsets.only(left: 16, right: 8),
-                                  title: Text(type),
-                                  value: enabled,
-                                  onChanged: (val) =>
-                                      _toggleBusinessTypeNotification(id, type, val),
-                                );
-                              }),
-                          ],
+                            return SwitchListTile(
+                              dense: true,
+                              contentPadding: const EdgeInsets.only(left: 16, right: 8),
+                              title: Text(type),
+                              value: enabled,
+                              onChanged: (val) async {
+                                await _toggleBusinessTypeNotification(id, type, val);
+                                setState(() {
+                                  _businessTypeNotifications[id]![type] = val;
+                                });
+                              },
+                            );
+                          }).toList(),
+
                         );
 
 

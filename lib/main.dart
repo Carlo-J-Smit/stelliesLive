@@ -111,9 +111,9 @@ Future<void> main() async {
     FirebasePerformance performance = FirebasePerformance.instance;
 
     // Firebase emulators (toggle ON/OFF)
-    const useEmulator = true;
+    const useEmulator = false;
     final emulatorHost = kIsWeb ? 'localhost' : '10.0.2.2';
-    // final emulatorHost = '192.168.68.104';
+    //final emulatorHost = '192.168.68.104';
 
     if (useEmulator) {
       FirebaseFirestore.instance.useFirestoreEmulator(emulatorHost, 8080);
@@ -127,31 +127,24 @@ Future<void> main() async {
     }
 
     // WorkManager init
-    Workmanager().initialize(callbackDispatcher, isInDebugMode: true);
+    Workmanager().initialize(callbackDispatcher, isInDebugMode: false);
 
-    // For testing: trigger a one-off task immediately
+    // Trigger first ping immediately
     Workmanager().registerOneOffTask(
-      "test_location_task",
+      "initial_location_ping",
       locationTask,
-      initialDelay: Duration(seconds: 5), // optional short delay
-      inputData: {}, // you can pass data if needed
+      initialDelay: Duration(seconds: 15), // trigger almost immediately
     );
 
-    // For testing: trigger a one-off task immediately
-    Workmanager().registerOneOffTask(
-      "test_location_task_2",
-      locationTask,
-      initialDelay: Duration(seconds: 300), // optional short delay
-      inputData: {}, // you can pass data if needed
-    );
-
-
-
-    // Schedule periodic background location task
+    // Then schedule periodic background task every 30 minutes
     Workmanager().registerPeriodicTask(
-      "1",
+      "periodic_location_ping",
       locationTask,
       frequency: const Duration(minutes: 30),
+      initialDelay: Duration(minutes: 30), // first periodic run after 30 mins
+      constraints: Constraints(
+        networkType: NetworkType.connected,
+      ),
     );
 
     // Initialize notifications
