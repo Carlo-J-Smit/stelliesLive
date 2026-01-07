@@ -5,6 +5,14 @@ import 'package:geolocator/geolocator.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 
+final List<String> _notificationTypes = [
+  'Update',
+  'Promotion',
+  'Reminder',
+  'Cancellation',
+];
+
+
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -16,9 +24,11 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   bool _notifyProximity = true;
   bool _locationGranted = false;
+  SharedPreferences? _prefs;
+
 
   List<Map<String, String>> _businesses = []; // List of {id: docId, name: name}
-  Map<String, bool> _businessNotifications = {};
+  // Map<String, bool> _businessNotifications = {};
 
   String _searchQuery = '';
   bool _loadingBusinesses = true;
@@ -26,10 +36,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   void initState() {
     super.initState();
+    _loadPrefs();
     _checkLocationPermission();
     _loadGlobalPreference();
     _fetchBusinesses();
+    _restoreSubscriptions();
   }
+
 
   /// Load global proximity notification preference
   Future<void> _loadGlobalPreference() async {
@@ -38,6 +51,58 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _notifyProximity = prefs.getBool('notifyProximity') ?? true;
     });
   }
+
+  String _topicFor(String businessId, String type) {
+    return 'business_${businessId}_${type.toLowerCase()}';
+  }
+
+  _loadPrefs() async {
+    _prefs = await SharedPreferences.getInstance();
+    setState(() {});
+  }
+
+
+  Future<void> _restoreSubscriptions() async {
+    final prefs = await SharedPreferences.getInstance();
+    for (final b in _businesses) {
+      final id = b['id']!;
+      for (final type in _notificationTypes) {
+        final key = 'notify_${id}_${type.toLowerCase()}';
+        final enabled = prefs.getBool(key) ?? true;
+        final topic = _topicFor(id, type);
+        if (enabled) {
+          await FirebaseMessaging.instance.subscribeToTopic(topic);
+        } else {
+          await FirebaseMessaging.instance.unsubscribeFromTopic(topic);
+        }
+      }
+    }
+  }
+
+
+  Future<void> _toggleBusinessTypeNotification(
+      String businessId,
+      String type,
+      bool value,
+      ) async {
+    final prefs = await SharedPreferences.getInstance();
+    final topic = _topicFor(businessId, type);
+
+    try {
+      if (value) {
+        await FirebaseMessaging.instance.subscribeToTopic(topic);
+      } else {
+        await FirebaseMessaging.instance.unsubscribeFromTopic(topic);
+      }
+
+      await prefs.setBool('notify_${businessId}_${type.toLowerCase()}', value);
+
+      setState(() {});
+    } catch (e) {
+      debugPrint('Failed toggling $topic: $e');
+    }
+  }
+
 
   /// Fetch businesses from Firestore
   Future<void> _fetchBusinesses() async {
@@ -54,17 +119,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
         };
       }).toList();
 
-      // Load local notification preferences
-      final prefs = await SharedPreferences.getInstance();
-      Map<String, bool> notifications = {};
-      for (var b in businessList) {
-        final id = b['id']!;
-        notifications[id] = prefs.getBool('notify_$id') ?? true;
-      }
+      // // Load local notification preferences
+      // final prefs = await SharedPreferences.getInstance();
+      // Map<String, bool> notifications = {};
+      // for (var b in businessList) {
+      //   final id = b['id']!;
+      //   notifications[id] = prefs.getBool('notify_$id') ?? true;
+      // }
 
       setState(() {
         _businesses = businessList;
-        _businessNotifications = notifications;
+        // _businessNotifications = notifications;
         _loadingBusinesses = false;
       });
 
@@ -120,66 +185,80 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('notifyProximity', value);
 
+    setState(() => _notifyProximity = value);
+
     for (final b in _businesses) {
       final id = b['id']!;
-      final topic = 'business_$id';
 
-      if (value && (_businessNotifications[id] ?? true)) {
-        await FirebaseMessaging.instance.subscribeToTopic(topic);
-      } else {
-        await FirebaseMessaging.instance.unsubscribeFromTopic(topic);
+      for (final type in _notificationTypes) {
+        final enabled =
+            prefs.getBool('notify_${id}_$type') ?? true;
+
+        final topic = _topicFor(id, type);
+
+        if (value && enabled) {
+          await FirebaseMessaging.instance.subscribeToTopic(topic);
+        } else {
+          await FirebaseMessaging.instance.unsubscribeFromTopic(topic);
+        }
       }
     }
-    setState(() => _notifyProximity = value);
   }
 
 
-  /// Toggle individual business notifications
-  Future<void> _toggleBusinessNotification(
-      String businessId,
-      bool value,
-      ) async {
-    final prefs = await SharedPreferences.getInstance();
 
-    final topic = 'business_$businessId';
-
-    try {
-      if (value) {
-        // ✅ User ENABLED notifications
-        await FirebaseMessaging.instance.subscribeToTopic(topic);
-        debugPrint('Subscribed to $topic');
-      } else {
-        // ❌ User DISABLED notifications
-        await FirebaseMessaging.instance.unsubscribeFromTopic(topic);
-        debugPrint('Unsubscribed from $topic');
-      }
-
-      // Persist locally
-      await prefs.setBool('notify_$businessId', value);
-
-      setState(() {
-        _businessNotifications[businessId] = value;
-      });
-    } catch (e) {
-      debugPrint('Topic toggle failed: $e');
-    }
-  }
+  // /// Toggle individual business notifications
+  // Future<void> _toggleBusinessNotification(
+  //     String businessId,
+  //     bool value,
+  //     ) async {
+  //   final prefs = await SharedPreferences.getInstance();
+  //
+  //   final topic = 'business_$businessId';
+  //
+  //   try {
+  //     if (value) {
+  //       // ✅ User ENABLED notifications
+  //       await FirebaseMessaging.instance.subscribeToTopic(topic);
+  //       debugPrint('Subscribed to $topic');
+  //     } else {
+  //       // ❌ User DISABLED notifications
+  //       await FirebaseMessaging.instance.unsubscribeFromTopic(topic);
+  //       debugPrint('Unsubscribed from $topic');
+  //     }
+  //
+  //     // Persist locally
+  //     await prefs.setBool('notify_$businessId', value);
+  //
+  //     setState(() {
+  //       _businessNotifications[businessId] = value;
+  //     });
+  //   } catch (e) {
+  //     debugPrint('Topic toggle failed: $e');
+  //   }
+  // }
 
   Future<void> _syncBusinessTopics() async {
     final prefs = await SharedPreferences.getInstance();
 
     for (final b in _businesses) {
       final id = b['id']!;
-      final enabled = prefs.getBool('notify_$id') ?? true;
-      final topic = 'business_$id';
 
-      if (enabled) {
-        await FirebaseMessaging.instance.subscribeToTopic(topic);
-      } else {
-        await FirebaseMessaging.instance.unsubscribeFromTopic(topic);
+      for (final type in _notificationTypes) {
+        final enabled =
+            prefs.getBool('notify_${id}_$type') ?? true;
+
+        final topic = _topicFor(id, type);
+
+        if (_notifyProximity && enabled) {
+          await FirebaseMessaging.instance.subscribeToTopic(topic);
+        } else {
+          await FirebaseMessaging.instance.unsubscribeFromTopic(topic);
+        }
       }
     }
   }
+
 
 
 
@@ -292,6 +371,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       onChanged: (val) => setState(() => _searchQuery = val),
                     ),
                     const SizedBox(height: 12),
+                    // _loadingBusinesses
+                    //     ? const Center(child: CircularProgressIndicator())
+                    //     : filteredBusinesses.isEmpty
+                    //     ? const Text("No businesses found")
+                    //     : Column(
+                    //   children: filteredBusinesses.map((b) {
+                    //     final id = b['id']!;
+                    //     final name = b['name']!;
+                    //     return SwitchListTile(
+                    //       contentPadding: EdgeInsets.zero,
+                    //       title: Text(name),
+                    //       value: _businessNotifications[id] ?? true,
+                    //       onChanged: (val) =>
+                    //           _toggleBusinessNotification(id, val),
+                    //     );
+                    //   }).toList(),
+                    // ),
                     _loadingBusinesses
                         ? const Center(child: CircularProgressIndicator())
                         : filteredBusinesses.isEmpty
@@ -300,15 +396,102 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       children: filteredBusinesses.map((b) {
                         final id = b['id']!;
                         final name = b['name']!;
-                        return SwitchListTile(
-                          contentPadding: EdgeInsets.zero,
-                          title: Text(name),
-                          value: _businessNotifications[id] ?? true,
-                          onChanged: (val) =>
-                              _toggleBusinessNotification(id, val),
+
+                        return ExpansionTile(
+                          tilePadding: EdgeInsets.zero,
+                          title: Text(
+                            name,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          children: [
+                            if (_prefs == null)
+                              const Padding(
+                                padding: EdgeInsets.all(8.0),
+                                child: CircularProgressIndicator(),
+                              )
+                            else
+                              ..._notificationTypes.map((type) {
+                                final enabled =
+                                    _prefs!.getBool('notify_${id}_$type') ?? true;
+
+                                return SwitchListTile(
+                                  dense: true,
+                                  contentPadding: const EdgeInsets.only(left: 16, right: 8),
+                                  title: Text(type),
+                                  value: enabled,
+                                  onChanged: (val) =>
+                                      _toggleBusinessTypeNotification(id, type, val),
+                                );
+                              }),
+                          ],
                         );
+
+
+                        // return Column(
+                        //   crossAxisAlignment: CrossAxisAlignment.start,
+                        //   children: [
+                        //     /// Business name
+                        //     Text(
+                        //       name,
+                        //       style: const TextStyle(
+                        //         fontSize: 16,
+                        //         fontWeight: FontWeight.bold,
+                        //       ),
+                        //     ),
+                        //
+                        //     const SizedBox(height: 6),
+                        //
+                        //     /// Per-type notification switches
+                        //     // ..._notificationTypes.map((type) {
+                        //     //   return FutureBuilder<SharedPreferences>(
+                        //     //     future: SharedPreferences.getInstance(),
+                        //     //     builder: (context, snapshot) {
+                        //     //       if (!snapshot.hasData) {
+                        //     //         return const SizedBox();
+                        //     //       }
+                        //     //
+                        //     //       final prefs = snapshot.data!;
+                        //     //       final enabled =
+                        //     //           prefs.getBool('notify_${id}_$type') ?? true;
+                        //     //
+                        //     //       return SwitchListTile(
+                        //     //         dense: true,
+                        //     //         contentPadding: EdgeInsets.zero,
+                        //     //         title: Text(type),
+                        //     //         value: enabled,
+                        //     //         onChanged: (val) =>
+                        //     //             _toggleBusinessTypeNotification(id, type, val),
+                        //     //       );
+                        //     //     },
+                        //     //   );
+                        //     // }),
+                        //
+                        //     ..._notificationTypes.map((type) {
+                        //       if (_prefs == null) return const SizedBox();
+                        //
+                        //       final enabled =
+                        //           _prefs!.getBool('notify_${id}_$type') ?? true;
+                        //
+                        //       return SwitchListTile(
+                        //         dense: true,
+                        //         contentPadding: EdgeInsets.zero,
+                        //         title: Text(type),
+                        //         value: enabled,
+                        //         onChanged: (val) =>
+                        //             _toggleBusinessTypeNotification(id, type, val),
+                        //       );
+                        //     }),
+                        //
+                        //
+                        //     const Divider(height: 24),
+                        //   ],
+                        //);
                       }).toList(),
                     ),
+
                   ],
                 ),
               ),

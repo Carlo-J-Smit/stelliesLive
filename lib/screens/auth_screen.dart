@@ -118,16 +118,16 @@ class _AuthScreenState extends State<AuthScreen> {
         }, SetOptions(merge: true));
 
 // 2. Create default notification preferences
-        await userRef
-            .collection('notificationPreferences')
-            .doc('settings')
-            .set({
-          'category_default': true,
-          'category_busy': true,
-          'quiet_hours_enabled': false,
-          'quiet_start': "22:00",
-          'quiet_end': "07:00",
-        }, SetOptions(merge: true));
+//         await userRef
+//             .collection('notificationPreferences')
+//             .doc('settings')
+//             .set({
+//           'category_default': true,
+//           'category_busy': true,
+//           'quiet_hours_enabled': false,
+//           'quiet_start': "22:00",
+//           'quiet_end': "07:00",
+//         }, SetOptions(merge: true));
 
       }
 

@@ -295,39 +295,18 @@ export const sendNotification = onDocumentCreated(
     const data = snap.data();
     const ref = snap.ref;
 
-    // Safety check
-    if (!data?.title || !data?.message) {
+    // --- Safety checks ---
+    if (!data?.title || !data?.message || !data?.business || !data?.type) {
       await ref.update({
         status: "Failed",
-        error: "Missing title or message",
+        error: "Missing required fields: title, message, business, or type",
         processedAt: FieldValue.serverTimestamp(),
       });
       return;
     }
 
-    // 🔔 Topic strategy (cheap + scalable)
-    // Everyone subscribes to:
-    //   business_<businessName>
-    // Optional:
-    //   event_<eventId>
-    const topics: string[] = [];
-
-    if (data.business) {
-      topics.push(`business_${data.business}`);
-    }
-
-    if (data.eventId) {
-      topics.push(`event_${data.eventId}`);
-    }
-
-    if (!topics.length) {
-      await ref.update({
-        status: "Failed",
-        error: "No topic resolved",
-        processedAt: FieldValue.serverTimestamp(),
-      });
-      return;
-    }
+    // Compose the topic based on business + type
+    const topic = `business_${data.business}_${(data.type as string).toLowerCase()}`;
 
     const message = {
       notification: {
@@ -335,29 +314,25 @@ export const sendNotification = onDocumentCreated(
         body: data.message,
       },
       data: {
-        type: data.type ?? "General",
+        type: data.type,
         eventId: data.eventId ?? "",
-        business: data.business ?? "",
+        business: data.business,
       },
+      topic,
     };
 
     try {
-      // Send to ALL topics (one call per topic)
-      await Promise.all(
-        topics.map(topic =>
-          messaging.send({
-            ...message,
-            topic,
-          })
-        )
-      );
+      await messaging.send(message);
 
       await ref.update({
         status: "Sent",
         processedAt: FieldValue.serverTimestamp(),
       });
 
+      console.log(`Notification sent to topic: ${topic}`);
     } catch (err: any) {
+      console.error(`Failed to send notification to ${topic}`, err);
+
       await ref.update({
         status: "Failed",
         error: err.message ?? String(err),

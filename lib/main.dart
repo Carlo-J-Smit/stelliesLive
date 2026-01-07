@@ -112,8 +112,8 @@ Future<void> main() async {
 
     // Firebase emulators (toggle ON/OFF)
     const useEmulator = true;
-    //final emulatorHost = kIsWeb ? 'localhost' : '10.0.2.2';
-    final emulatorHost = '192.168.68.104';
+    final emulatorHost = kIsWeb ? 'localhost' : '10.0.2.2';
+    // final emulatorHost = '192.168.68.104';
 
     if (useEmulator) {
       FirebaseFirestore.instance.useFirestoreEmulator(emulatorHost, 8080);
