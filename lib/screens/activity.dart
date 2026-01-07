@@ -64,7 +64,7 @@ class _ActivityScreenState extends State<ActivityScreen> {
     setState(() => _userPosition = pos);
     setState(() => _loading = false); // after getting location
 
-    _logUserLocation(pos);
+    // _logUserLocation(pos);
 
     await _checkProximityToEvent();
 
@@ -162,11 +162,18 @@ class _ActivityScreenState extends State<ActivityScreen> {
       if (DateTime.now().difference(_lastReload).inSeconds < 5) return;
       _lastReload = DateTime.now();
 
+      final now = DateTime.now();
+
       final snapshot = await FirebaseFirestore.instance.collection('events').get();
 
       final List<Event> freshEvents = snapshot.docs.map((doc) {
         return Event.fromMap(doc.id, doc.data() as Map<String, dynamic>);
+      }).where((event) {
+        if (event.dateTime == null) return false; // skip if no timestamp
+        final diff = now.difference(event.dateTime!);
+        return diff.inHours <= 24; // only show events in last 24h or future
       }).toList();
+
 
       // Update widget.events
       widget.events
@@ -633,20 +640,20 @@ class _ActivityScreenState extends State<ActivityScreen> {
       if (pos == null) return;
 
       setState(() => _userPosition = pos);
-      await _logUserLocation(pos);
+      // await _logUserLocation(pos);
     } catch (e) {
       setState(() => _error = e.toString());
     }
   }
 
-  Future<void> _logUserLocation(Position pos) async {
-    await FirebaseFirestore.instance.collection('location_logs').add({
-      'userId': FirebaseAuth.instance.currentUser?.uid,
-      'timestamp': Timestamp.now(),
-      'lat': pos.latitude,
-      'lng': pos.longitude,
-    });
-  }
+  // Future<void> _logUserLocation(Position pos) async {
+  //   await FirebaseFirestore.instance.collection('location_logs').add({
+  //     'userId': FirebaseAuth.instance.currentUser?.uid,
+  //     'timestamp': Timestamp.now(),
+  //     'lat': pos.latitude,
+  //     'lng': pos.longitude,
+  //   });
+  // }
 
   void _handleLongPress(LatLng tappedPoint) {
     const double maxDistance = 60; // Match cluster radius

@@ -19,18 +19,12 @@ import '../models/event.dart';
 import '../widgets/event_card.dart';
 import '../providers/event_provider.dart';
 
-enum MapStatus {
-  loading,
-  ready,
-  error,
-}
+enum MapStatus { loading, ready, error }
 
 class EventFormPage extends StatefulWidget {
   final Event? event;
   final EventProvider provider; // <-- pass provider
   final String businessName;
-
-
 
   const EventFormPage({
     super.key,
@@ -84,7 +78,8 @@ class _MapPickerDialogState extends State<_MapPickerDialog> {
 
       if (permission == LocationPermission.deniedForever) {
         _fail(
-          "Location permission permanently denied.\nOpen settings to enable it.");
+          "Location permission permanently denied.\nOpen settings to enable it.",
+        );
         await Geolocator.openAppSettings();
         return;
       }
@@ -97,7 +92,9 @@ class _MapPickerDialogState extends State<_MapPickerDialog> {
       _center = LatLng(position.latitude, position.longitude);
       _status = MapStatus.ready;
     } catch (e) {
-      _fail("Unable to determine location.\nCheck internet or Location Permission.");
+      _fail(
+        "Unable to determine location.\nCheck internet or Location Permission.",
+      );
     }
 
     if (mounted) setState(() {});
@@ -112,11 +109,7 @@ class _MapPickerDialogState extends State<_MapPickerDialog> {
   Widget build(BuildContext context) {
     return AlertDialog(
       title: const Text("Pick Location"),
-      content: SizedBox(
-        width: 400,
-        height: 400,
-        child: _buildContent(),
-      ),
+      content: SizedBox(width: 400, height: 400, child: _buildContent()),
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
@@ -124,9 +117,9 @@ class _MapPickerDialogState extends State<_MapPickerDialog> {
         ),
         ElevatedButton(
           onPressed:
-          _pickedLocation != null
-              ? () => Navigator.pop(context, _pickedLocation)
-              : null,
+              _pickedLocation != null
+                  ? () => Navigator.pop(context, _pickedLocation)
+                  : null,
           child: const Text("Select"),
         ),
       ],
@@ -143,23 +136,20 @@ class _MapPickerDialogState extends State<_MapPickerDialog> {
 
       case MapStatus.ready:
         return GoogleMap(
-          initialCameraPosition: CameraPosition(
-            target: _center,
-            zoom: 15,
-          ),
+          initialCameraPosition: CameraPosition(target: _center, zoom: 15),
           onMapCreated: (controller) {
             _mapController = controller;
           },
           onTap: (latLng) => setState(() => _pickedLocation = latLng),
           markers:
-          _pickedLocation != null
-              ? {
-            Marker(
-              markerId: const MarkerId('picked'),
-              position: _pickedLocation!,
-            ),
-          }
-              : {},
+              _pickedLocation != null
+                  ? {
+                    Marker(
+                      markerId: const MarkerId('picked'),
+                      position: _pickedLocation!,
+                    ),
+                  }
+                  : {},
         );
     }
   }
@@ -190,7 +180,6 @@ class _MapPickerDialogState extends State<_MapPickerDialog> {
     );
   }
 }
-
 
 //   @override
 //   Widget build(BuildContext context) {
@@ -283,6 +272,8 @@ class _EventFormPageState extends State<EventFormPage> {
   bool _isRecurring = false;
   String? _selectedDayOfWeek;
   String? _selectedTag;
+  double _uploadProgress = 0.0; // 0.0 → 1.0
+  String _uploadMessage = '';
 
   // ---------------- LOCATION ----------------
   String? _locationAddress;
@@ -476,10 +467,45 @@ class _EventFormPageState extends State<EventFormPage> {
           ),
           if (_isSubmitting)
             Container(
-              color: Colors.black.withOpacity(0.4), // semi-transparent overlay
-              child: const Center(
-                child: CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+              color: Colors.black.withOpacity(0.4),
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  width: 300,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text(
+                        'Uploading data...',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Spinning wheel
+                      const CircularProgressIndicator(),
+                      const SizedBox(height: 16),
+
+                      // Linear progress bar
+                      LinearProgressIndicator(
+                        value: _uploadProgress, // 0.0 → 1.0
+                      ),
+                      const SizedBox(height: 12),
+
+                      // Status message
+                      Text(
+                        _uploadMessage,
+                        // "Uploading image..." / "Uploading icon..."
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -773,10 +799,11 @@ class _EventFormPageState extends State<EventFormPage> {
 
   Future<void> _loadBusinessHomeAddress() async {
     try {
-      final snap = await FirebaseFirestore.instance
-          .collection('businesses')
-          .doc(widget.businessName) // or businessId if you have one
-          .get();
+      final snap =
+          await FirebaseFirestore.instance
+              .collection('businesses')
+              .doc(widget.businessName) // or businessId if you have one
+              .get();
 
       if (!snap.exists) return;
 
@@ -794,7 +821,6 @@ class _EventFormPageState extends State<EventFormPage> {
       debugPrint('Failed to load business location: $e');
     }
   }
-
 
   Future<void> _pickDateTime() async {
     final now = DateTime.now();
@@ -862,6 +888,8 @@ class _EventFormPageState extends State<EventFormPage> {
     setState(() {
       _isSubmitting = true;
       _error = null;
+      _uploadProgress = 0.0;
+      _uploadMessage = 'Preparing data...';
     });
 
     try {
@@ -904,7 +932,8 @@ class _EventFormPageState extends State<EventFormPage> {
         'tag': _selectedTag,
         'imageUrl': _imageUrl ?? '',
         'iconUrl': _iconUrl ?? '',
-        'busynessLevel': isEdit ? widget.event!.busynessLevel ?? 'Quiet' : 'Quiet',
+        'busynessLevel':
+            isEdit ? widget.event!.busynessLevel ?? 'Quiet' : 'Quiet',
         'likes': isEdit ? widget.event!.likes ?? 0 : 0,
         'dislikes': isEdit ? widget.event!.dislikes ?? 0 : 0,
         'business': widget.businessName,
@@ -984,28 +1013,35 @@ class _EventFormPageState extends State<EventFormPage> {
             .add(data);
       }
 
-
+      // --- UPLOAD IMAGE ---
       if (_pickedImage != null || _pickedBytes != null) {
-        await _uploadEventImage(eventRef.id, _titleController.text.trim());
+        await _uploadFileWithProgress(
+          fileId: eventRef.id,
+          title: _titleController.text.trim(),
+          isIcon: false,
+        );
         await eventRef.update({'imageUrl': _imageUrl});
       }
 
+      // --- UPLOAD ICON ---
       if (_pickedIcon != null || _pickedIconBytes != null) {
-        await _uploadEventIcon(eventRef.id, _titleController.text.trim());
+        await _uploadFileWithProgress(
+          fileId: eventRef.id,
+          title: _titleController.text.trim(),
+          isIcon: true,
+        );
         await eventRef.update({'iconUrl': _iconUrl});
       }
 
+      // After uploading images/icons and Firestore update
+      // --- UPDATE PROVIDER ---
       if (isEdit) {
-        await eventRef.update(data);
         widget.provider.updateEvent(widget.event!.id, data);
       } else {
-        widget.provider.addEvent(
-          Event.fromMap(eventRef.id, data),
-        );
+        widget.provider.addEvent(Event.fromMap(eventRef.id, data));
       }
 
-
-      // Success
+      // Show success message
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -1022,6 +1058,56 @@ class _EventFormPageState extends State<EventFormPage> {
       setState(() => _error = e.toString());
     } finally {
       setState(() => _isSubmitting = false);
+    }
+  }
+
+  Future<void> _uploadFileWithProgress({
+    required String fileId,
+    required String title,
+    required bool isIcon,
+  }) async {
+    final safeTitle = title
+        .trim()
+        .replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_')
+        .replaceAll(RegExp(r'_+'), '_');
+
+    final ref = FirebaseStorage.instance.ref().child(
+      isIcon
+          ? 'event_icon/$fileId/$safeTitle.png'
+          : 'event_pics/$fileId/$safeTitle.png',
+    );
+
+    UploadTask uploadTask;
+
+    if (kIsWeb) {
+      final bytes = isIcon ? _pickedIconBytes! : _pickedBytes!;
+      uploadTask = ref.putData(
+        bytes,
+        SettableMetadata(contentType: 'image/png'),
+      );
+    } else {
+      final file = File(isIcon ? _pickedIcon!.path : _pickedImage!.path);
+      uploadTask = ref.putFile(file);
+    }
+
+    setState(() {
+      _uploadMessage = isIcon ? 'Uploading icon...' : 'Uploading image...';
+    });
+
+    uploadTask.snapshotEvents.listen((taskSnapshot) {
+      setState(() {
+        _uploadProgress =
+            taskSnapshot.bytesTransferred / taskSnapshot.totalBytes;
+      });
+    });
+
+    final snapshot = await uploadTask;
+    final downloadUrl = await snapshot.ref.getDownloadURL();
+
+    if (isIcon) {
+      _iconUrl = downloadUrl;
+    } else {
+      _imageUrl = downloadUrl;
     }
   }
 

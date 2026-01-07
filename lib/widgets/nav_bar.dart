@@ -18,12 +18,6 @@ import 'package:workmanager/workmanager.dart';
 import 'package:flutter/foundation.dart' show kReleaseMode;
 import '../services/debug_background_task.dart';
 
-
-
-
-
-
-
 class Navbar extends StatefulWidget {
   const Navbar({super.key});
 
@@ -44,7 +38,8 @@ class _NavbarState extends State<Navbar> {
   }
 
   Future<void> _launchFeedbackForm() async {
-    const url = 'https://docs.google.com/forms/d/e/1FAIpQLSe1tEAuqDT4VEjqggP633DLwzqsI3xpEKaP_su4AI_K4KqooA/viewform?usp=dialog';
+    const url =
+        'https://docs.google.com/forms/d/e/1FAIpQLSe1tEAuqDT4VEjqggP633DLwzqsI3xpEKaP_su4AI_K4KqooA/viewform?usp=dialog';
 
     if (await canLaunchUrl(Uri.parse(url))) {
       await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
@@ -54,7 +49,6 @@ class _NavbarState extends State<Navbar> {
       );
     }
   }
-
 
   Future<void> _onAuthChanged(User? user) async {
     if (!mounted) return;
@@ -71,10 +65,11 @@ class _NavbarState extends State<Navbar> {
     }
 
     try {
-      final doc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .get();
+      final doc =
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(user.uid)
+              .get();
 
       if (!mounted) return;
       setState(() {
@@ -109,13 +104,16 @@ class _NavbarState extends State<Navbar> {
     // Close ALL pages and go back to public landing page
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const EventsScreen()),
-          (route) => false,
+      (route) => false,
     );
   }
 
-
-  Widget _navButton(BuildContext context, String label, VoidCallback onTap,
-      {Color color = AppColors.textLight}) {
+  Widget _navButton(
+    BuildContext context,
+    String label,
+    VoidCallback onTap, {
+    Color color = AppColors.textLight,
+  }) {
     return TextButton(
       onPressed: onTap,
       child: Text(label, style: TextStyle(color: color, fontSize: 16)),
@@ -138,8 +136,12 @@ class _NavbarState extends State<Navbar> {
         ),
         const Spacer(),
         _navButton(context, 'Activity', () async {
-          final eventsSnapshot = await FirebaseFirestore.instance.collection('events').get();
-          final events = eventsSnapshot.docs.map((doc) => Event.fromFirestore(doc)).toList();
+          final eventsSnapshot =
+              await FirebaseFirestore.instance.collection('events').get();
+          final events =
+              eventsSnapshot.docs
+                  .map((doc) => Event.fromFirestore(doc))
+                  .toList();
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(builder: (_) => ActivityScreen(events: events)),
@@ -159,31 +161,23 @@ class _NavbarState extends State<Navbar> {
             );
           }),
         if (isBusiness)
-          _navButton(
-            context,
-            'Business Management',
-                () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => AdminDashboardPage(businessName: _business ?? '')),
-              );
-            },
-            color: Colors.yellow,
-          ),
-        if (_user != null)
-          _navButton(context, 'Logout', _logout),
+          _navButton(context, 'Business Management', () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder:
+                    (_) => AdminDashboardPage(businessName: _business ?? ''),
+              ),
+            );
+          }, color: Colors.yellow),
+        if (_user != null) _navButton(context, 'Logout', _logout),
         if (isAdmin)
-          _navButton(
-            context,
-            'Data Management',
-            () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const AdminPage()),
-              );
-            },
-            color: Colors.yellow,
-          ),
+          _navButton(context, 'Data Management', () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const AdminPage()),
+            );
+          }, color: Colors.yellow),
         _navButton(context, 'Feedback', _launchFeedbackForm),
         // Settings as gear icon
         IconButton(
@@ -196,20 +190,6 @@ class _NavbarState extends State<Navbar> {
             );
           },
         ),
-        IconButton(
-          icon: const Icon(Icons.bug_report, color: Colors.yellow),
-          tooltip: 'Test Background Task',
-          onPressed: () async {
-            print('Manual debug task triggered from Navbar');
-            await runBackgroundTaskDebug();
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Debug background task completed!')),
-            );
-          },
-        ),
-
-
-
       ],
     );
   }
@@ -231,36 +211,18 @@ class _NavbarState extends State<Navbar> {
         const Spacer(),
 
         // Settings gear + test button
-        Row(
-          children: [
-            // Test background task button (debug only)
-            if (!kReleaseMode)
-              IconButton(
-                icon: const Icon(Icons.bug_report, color: Colors.yellow),
-                tooltip: 'Test Background Task',
-                onPressed: () async {
-                  print('Manual debug task triggered from Navbar');
-                  await runBackgroundTaskDebug();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Debug background task completed!')),
-                  );
-                },
-              ),
 
-            // Settings gear icon
-            IconButton(
-              icon: const Icon(Icons.settings, color: AppColors.textLight),
-              tooltip: 'Settings',
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const SettingsScreen()),
-                );
-              },
-            ),
-          ],
+        // Settings gear icon
+        IconButton(
+          icon: const Icon(Icons.settings, color: AppColors.textLight),
+          tooltip: 'Settings',
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const SettingsScreen()),
+            );
+          },
         ),
-
 
         PopupMenuButton<String>(
           icon: const Icon(Icons.menu, color: Colors.white),
@@ -268,13 +230,21 @@ class _NavbarState extends State<Navbar> {
             switch (value) {
               case 'Activity':
                 () async {
-                  final eventsSnapshot = await FirebaseFirestore.instance.collection('events').get();
-                  final events = eventsSnapshot.docs.map((doc) => Event.fromFirestore(doc)).toList();
+                  final eventsSnapshot =
+                      await FirebaseFirestore.instance
+                          .collection('events')
+                          .get();
+                  final events =
+                      eventsSnapshot.docs
+                          .map((doc) => Event.fromFirestore(doc))
+                          .toList();
 
                   if (!mounted) return;
                   Navigator.pushReplacement(
                     context,
-                    MaterialPageRoute(builder: (_) => ActivityScreen(events: events)),
+                    MaterialPageRoute(
+                      builder: (_) => ActivityScreen(events: events),
+                    ),
                   );
                 }();
                 break;
@@ -294,7 +264,11 @@ class _NavbarState extends State<Navbar> {
               case 'BusinessManagement':
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (_) => AdminDashboardPage(businessName: _business ?? '')),
+                  MaterialPageRoute(
+                    builder:
+                        (_) =>
+                            AdminDashboardPage(businessName: _business ?? ''),
+                  ),
                 );
                 break;
 
@@ -310,22 +284,31 @@ class _NavbarState extends State<Navbar> {
               case 'Feedback':
                 _launchFeedbackForm();
                 break;
-
             }
           },
-          itemBuilder: (context) => [
-            const PopupMenuItem(value: 'Activity', child: Text('Activity')),
-            const PopupMenuItem(value: 'Events', child: Text('Events')),
-            if (_user == null)
-              const PopupMenuItem(value: 'Login', child: Text('Business Login')),
-            if (isBusiness)
-              const PopupMenuItem(value: 'BusinessManagement', child: Text('Business Management')),
-            if (_user != null)
-              const PopupMenuItem(value: 'Logout', child: Text('Logout')),
-            if (isAdmin)
-              const PopupMenuItem(value: 'Admin', child: Text('Data Management')),
-            const PopupMenuItem(value: 'Feedback', child: Text('Feedback')),
-          ],
+          itemBuilder:
+              (context) => [
+                const PopupMenuItem(value: 'Activity', child: Text('Activity')),
+                const PopupMenuItem(value: 'Events', child: Text('Events')),
+                if (_user == null)
+                  const PopupMenuItem(
+                    value: 'Login',
+                    child: Text('Business Login'),
+                  ),
+                if (isBusiness)
+                  const PopupMenuItem(
+                    value: 'BusinessManagement',
+                    child: Text('Business Management'),
+                  ),
+                if (_user != null)
+                  const PopupMenuItem(value: 'Logout', child: Text('Logout')),
+                if (isAdmin)
+                  const PopupMenuItem(
+                    value: 'Admin',
+                    child: Text('Data Management'),
+                  ),
+                const PopupMenuItem(value: 'Feedback', child: Text('Feedback')),
+              ],
         ),
       ],
     );
@@ -347,9 +330,8 @@ class _NavbarState extends State<Navbar> {
           padding: EdgeInsets.fromLTRB(20, topPadding, 20, 5),
           width: double.infinity,
           color: AppColors.primaryRed,
-          child: isNarrow
-              ? _buildMobileNav(context)
-              : _buildDesktopNav(context),
+          child:
+              isNarrow ? _buildMobileNav(context) : _buildDesktopNav(context),
         );
       },
     );
