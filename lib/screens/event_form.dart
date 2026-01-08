@@ -23,6 +23,19 @@ import 'package:image/image.dart' as img;
 
 enum MapStatus { loading, ready, error }
 
+/// Compress image and keep good quality
+Uint8List compressImageIsolate(Uint8List data) {
+  img.Image? image = img.decodeImage(data);
+  if (image == null) return data;
+
+  if (image.width > 1080) {
+    image = img.copyResize(image, width: 1080);
+  }
+
+  final compressed = img.encodeJpg(image, quality: 85);
+  return Uint8List.fromList(compressed);
+}
+
 class EventFormPage extends StatefulWidget {
   final Event? event;
   final EventProvider provider; // <-- pass provider
@@ -586,15 +599,19 @@ class _EventFormPageState extends State<EventFormPage> {
 
         const SizedBox(height: 10),
         DropdownButtonFormField<String>(
-          value: _categoryController.text.isNotEmpty ? _categoryController.text : null,
-          items: const [
-            'Live Music',
-            'Games',
-            'Karaoke',
-            'Market',
-            'Sport',
-            'Other',
-          ].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+          value:
+              _categoryController.text.isNotEmpty
+                  ? _categoryController.text
+                  : null,
+          items:
+              const [
+                'Live Music',
+                'Games',
+                'Karaoke',
+                'Market',
+                'Sport',
+                'Other',
+              ].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
           onChanged: (v) {
             _categoryController.text = v ?? '';
             _validateFields();
@@ -604,7 +621,6 @@ class _EventFormPageState extends State<EventFormPage> {
             errorText: _fieldErrors['category'],
           ),
         ),
-
       ],
     );
   }
@@ -1002,19 +1018,21 @@ class _EventFormPageState extends State<EventFormPage> {
     );
   }
 
-  /// Compress image and keep good quality
-  Uint8List compressImageIsolate(Uint8List data) {
-    img.Image? image = img.decodeImage(data);
-    if (image == null) return data;
+  void _showError(String message) {
+    final snackBar = SnackBar(
+      content: Text(message, style: const TextStyle(fontSize: 18)),
+      backgroundColor: AppColors.primaryRed,
+      behavior: SnackBarBehavior.floating,
+      margin: const EdgeInsets.fromLTRB(16, 50, 16, 0),
+      // top margin = 50
+      padding: const EdgeInsets.all(20),
+      // increase padding
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      duration: const Duration(seconds: 4),
+    );
 
-    if (image.width > 1080) {
-      image = img.copyResize(image, width: 1080);
-    }
-
-    final compressed = img.encodeJpg(image, quality: 85);
-    return Uint8List.fromList(compressed);
+    ScaffoldMessenger.of(context).showSnackBar(snackBar);
   }
-
 
   Future<void> _submitEvent() async {
     setState(() {
@@ -1050,6 +1068,7 @@ class _EventFormPageState extends State<EventFormPage> {
 
       if (missingFields.isNotEmpty) {
         _showValidationErrors(missingFields);
+        setState(() => _isSubmitting = false); // <--- reset!
         return; // stop submission
       }
 
@@ -1164,25 +1183,51 @@ class _EventFormPageState extends State<EventFormPage> {
             .add(data);
       }
 
-      // --- UPLOAD IMAGE ---
-      if (_pickedImage != null || _pickedBytes != null) {
-        await _uploadFileWithProgress(
-          fileId: eventRef.id,
-          title: _titleController.text.trim(),
-          isIcon: false,
-        );
-        await eventRef.update({'imageUrl': _imageUrl});
+      if (!kIsWeb && _pickedImage != null) {
+        _pickedBytes = await File(_pickedImage!.path).readAsBytes();
+      }
+      if (!kIsWeb && _pickedIcon != null) {
+        _pickedIconBytes = await File(_pickedIcon!.path).readAsBytes();
       }
 
-      // --- UPLOAD ICON ---
-      if (_pickedIcon != null || _pickedIconBytes != null) {
-        await _uploadFileWithProgress(
-          fileId: eventRef.id,
-          title: _titleController.text.trim(),
-          isIcon: true,
-        );
-        await eventRef.update({'iconUrl': _iconUrl});
+      // 1. Upload image/icon
+      if (_pickedImage != null || _pickedBytes != null) {
+        try {
+          await _uploadFileWithProgress(
+            fileId: eventRef.id,
+            title: _titleController.text.trim(),
+            isIcon: false,
+          );
+        } catch (e, st) {
+          debugPrint('Upload failed: $e\n$st');
+          _showError('Upload failed: $e');
+          return;
+        }
       }
+      if (_pickedIcon != null || _pickedIconBytes != null) {
+        try {
+          await _uploadFileWithProgress(
+            fileId: eventRef.id,
+            title: _titleController.text.trim(),
+            isIcon: true,
+          );
+        } catch (e, st) {
+          debugPrint('Upload failed: $e\n$st');
+          _showError('Upload failed: $e');
+          return;
+        }
+      }
+
+      // 2. Update Firestore with image/icon URLs
+      await eventRef.update({
+        'imageUrl': _imageUrl ?? '',
+        'iconUrl': _iconUrl ?? '',
+      });
+
+      // if (_error != null) {
+      //   _showError(_error!);
+      //   _error = null;
+      // }
 
       // After uploading images/icons and Firestore update
       // --- UPDATE PROVIDER ---
@@ -1230,7 +1275,6 @@ class _EventFormPageState extends State<EventFormPage> {
 
     UploadTask uploadTask;
 
-
     if (kIsWeb) {
       // 🚫 NO COMPRESSION ON WEB
       final rawBytes = isIcon ? _pickedIconBytes! : _pickedBytes!;
@@ -1243,15 +1287,13 @@ class _EventFormPageState extends State<EventFormPage> {
       final file = File(isIcon ? _pickedIcon!.path : _pickedImage!.path);
       final rawBytes = await file.readAsBytes();
 
-      final compressedBytes =
-      await compute(compressImageIsolate, rawBytes);
+      final compressedBytes = await compute(compressImageIsolate, rawBytes);
 
       uploadTask = ref.putData(
         compressedBytes,
         SettableMetadata(contentType: 'image/jpeg'),
       );
     }
-
 
     setState(() {
       _uploadMessage = isIcon ? 'Uploading icon...' : 'Uploading image...';
@@ -1264,13 +1306,23 @@ class _EventFormPageState extends State<EventFormPage> {
       });
     });
 
-    final snapshot = await uploadTask;
-    final downloadUrl = await snapshot.ref.getDownloadURL();
+    try {
+      final snapshot = await uploadTask;
+      final downloadUrl = await snapshot.ref.getDownloadURL();
 
-    if (isIcon) {
-      _iconUrl = downloadUrl;
-    } else {
-      _imageUrl = downloadUrl;
+      if (isIcon) {
+        _iconUrl = downloadUrl;
+      } else {
+        _imageUrl = downloadUrl;
+      }
+    } catch (e) {
+      final message = 'Failed to upload ${isIcon ? "icon" : "image"}';
+      setState(() {
+        _uploadMessage = message;
+        _uploadProgress = 0.0;
+      });
+      _showError('$message: $e'); // show SnackBar
+      //throw e;
     }
   }
 
@@ -1312,22 +1364,6 @@ class _EventFormPageState extends State<EventFormPage> {
       await ref.putFile(File(_pickedIcon!.path));
     }
     _iconUrl = await ref.getDownloadURL();
-  }
-
-  void _showError(String message) {
-    final snackBar = SnackBar(
-      content: Text(message, style: const TextStyle(fontSize: 18)),
-      backgroundColor: AppColors.primaryRed,
-      behavior: SnackBarBehavior.floating,
-      margin: const EdgeInsets.fromLTRB(16, 50, 16, 0),
-      // top margin = 50
-      padding: const EdgeInsets.all(20),
-      // increase padding
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      duration: const Duration(seconds: 4),
-    );
-
-    ScaffoldMessenger.of(context).showSnackBar(snackBar);
   }
 
   Future<void> _deleteEvent() async {

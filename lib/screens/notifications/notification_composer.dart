@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:intl/intl.dart';
 import '../../models/event.dart';
 import '../../constants/colors.dart';
@@ -37,6 +36,14 @@ class _NotificationComposerState extends State<NotificationComposer> {
     'Reminder': Icons.alarm,
   };
 
+  /// Predetermined templates for each type
+  final Map<String, String> _templates = {
+    'Update': "There is an update for <event> on <date>. Please check details.",
+    'Cancellation': "The event <event> scheduled on <date> has been cancelled.",
+    'Promotion': "Special promotion for <event> happening on <date>! Don't miss out.",
+    'Reminder': "Reminder: <event> is coming up on <date>. Stay tuned!",
+  };
+
   bool get _canSend =>
       _title.text.isNotEmpty &&
           _message.text.isNotEmpty &&
@@ -47,6 +54,17 @@ class _NotificationComposerState extends State<NotificationComposer> {
     _title.dispose();
     _message.dispose();
     super.dispose();
+  }
+
+  /// Autofill title and message when type or event changes
+  void _applyTemplate() {
+    if (_type == null) return;
+
+    String eventTitle = _event?.title ?? "<event>";
+    String template = _templates[_type!] ?? "";
+
+    _title.text = _type!; // simple default title is type
+    _message.text = template.replaceAll("<event>", eventTitle);
   }
 
   Future<void> _send() async {
@@ -90,6 +108,7 @@ class _NotificationComposerState extends State<NotificationComposer> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
+            // Notification type
             DropdownButtonFormField<String>(
               value: _type,
               hint: const Text("Notification type"),
@@ -105,20 +124,35 @@ class _NotificationComposerState extends State<NotificationComposer> {
                   ),
                 );
               }).toList(),
-              onChanged: (v) => setState(() => _type = v),
+              onChanged: (v) {
+                setState(() {
+                  _type = v;
+                  _applyTemplate();
+                });
+              },
             ),
             const SizedBox(height: 12),
 
+            // Event selector (purely template helper)
             DropdownButtonFormField<Event>(
               value: _event,
-              hint: const Text("Link to event (optional)"),
+              hint: const Text("Autofill from event (optional)"),
               items: widget.events.map((e) {
-                return DropdownMenuItem(value: e, child: Text(e.title ?? "Untitled"));
+                return DropdownMenuItem(
+                  value: e,
+                  child: Text(e.title ?? "Untitled"),
+                );
               }).toList(),
-              onChanged: (v) => setState(() => _event = v),
+              onChanged: (v) {
+                setState(() {
+                  _event = v;
+                  _applyTemplate();
+                });
+              },
             ),
             const SizedBox(height: 12),
 
+            // Title
             TextField(
               controller: _title,
               decoration: const InputDecoration(
@@ -129,6 +163,7 @@ class _NotificationComposerState extends State<NotificationComposer> {
             ),
             const SizedBox(height: 12),
 
+            // Message
             TextField(
               controller: _message,
               maxLines: 4,

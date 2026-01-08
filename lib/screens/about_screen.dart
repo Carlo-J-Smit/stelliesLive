@@ -18,7 +18,7 @@ class AboutScreen extends StatelessWidget {
     showLicensePage(
       context: context,
       applicationName: 'StelliesLive',
-      applicationVersion: 'v1.0.0 — Updated July 2025',
+      applicationVersion: 'v0.4.0 — Updated January 2026',
       applicationLegalese: '© 2025 Carlo J. Smit and Reinardt van Zyl. All rights reserved.',
     );
   }

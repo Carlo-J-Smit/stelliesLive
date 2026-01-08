@@ -39,11 +39,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   void initState() {
     super.initState();
-    _loadPrefs();
-    _checkLocationPermission();
-    _loadGlobalPreference();
-    _fetchBusinesses();
-    _restoreSubscriptions();
+    _initSettings();
+  }
+
+  Future<void> _initSettings() async {
+    _prefs = await SharedPreferences.getInstance();
+    await _loadGlobalPreference();  // global proximity toggle
+    await _fetchBusinesses();       // load businesses + restore local prefs
+
+    // --- FIRST INSTALL: subscribe to all if never done before ---
+    bool isFirstInstall = !(_prefs!.containsKey('app_installed'));
+    if (isFirstInstall) {
+      for (final b in _businesses) {
+        final id = b['id']!;
+        for (final type in _notificationTypes) {
+          final topic = _topicFor(id, type);
+          if (!kIsWeb) await FirebaseMessaging.instance.subscribeToTopic(topic);
+          await _prefs!.setBool('notify_${id}_${type.toLowerCase()}', true);
+        }
+      }
+      await _prefs!.setBool('app_installed', true);
+    }
+
+    await _restoreSubscriptions();  // only after businesses are loaded
+    await _checkLocationPermission();
   }
 
 
@@ -66,33 +85,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
 
   Future<void> _restoreSubscriptions() async {
-    final prefs = await SharedPreferences.getInstance();
+    if (_prefs == null) return;
+    if (_businesses.isEmpty) return;
+
     for (final b in _businesses) {
       final id = b['id']!;
       for (final type in _notificationTypes) {
         final key = 'notify_${id}_${type.toLowerCase()}';
-        final enabled = prefs.getBool(key) ?? true;
+        final enabled = _prefs!.getBool(key) ?? true; // only subscribe if true
         final topic = _topicFor(id, type);
+
         if (enabled) {
-          if (!kIsWeb) {
-            await FirebaseMessaging.instance.subscribeToTopic(topic);
-          }
+          if (!kIsWeb) await FirebaseMessaging.instance.subscribeToTopic(topic);
         } else {
-          if (!kIsWeb) {
-            await FirebaseMessaging.instance.unsubscribeFromTopic(topic);
-          }
+          if (!kIsWeb) await FirebaseMessaging.instance.unsubscribeFromTopic(topic);
         }
       }
     }
   }
 
 
-  Future<void> _toggleBusinessTypeNotification(
-      String businessId,
-      String type,
-      bool value,
-      ) async {
-    final prefs = await SharedPreferences.getInstance();
+
+  Future<void> _toggleBusinessTypeNotification(String businessId, String type, bool value) async {
     final topic = _topicFor(businessId, type);
 
     try {
@@ -102,17 +116,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
         } else {
           await FirebaseMessaging.instance.unsubscribeFromTopic(topic);
         }
-      } else {
-        debugPrint('Web platform: skipping topic subscription $topic');
-        // Optional: store preference locally or send to server for your own tracking
       }
 
-      await prefs.setBool('notify_${businessId}_${type.toLowerCase()}', value);
-      setState(() {});
+      await _prefs?.setBool('notify_${businessId}_${type.toLowerCase()}', value);
+
+      // Update local state immediately
+      setState(() {
+        _businessTypeNotifications[businessId]![type] = value;
+      });
     } catch (e) {
       debugPrint('Failed toggling $topic: $e');
     }
   }
+
 
 
   /// Fetch businesses from Firestore
@@ -134,10 +150,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
         final id = b['id']!;
         _businessTypeNotifications[id] = {};
         for (var type in _notificationTypes) {
+          // Only default to true if key doesn't exist
           _businessTypeNotifications[id]![type] =
-              _prefs?.getBool('notify_${id}_$type') ?? true;
+          _prefs?.containsKey('notify_${id}_${type.toLowerCase()}') == true
+              ? _prefs!.getBool('notify_${id}_${type.toLowerCase()}')!
+              : true;
         }
       }
+
 
 
       debugPrint('Fetched businesses: $businessList');

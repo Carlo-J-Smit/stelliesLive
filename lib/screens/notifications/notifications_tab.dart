@@ -1,12 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:intl/intl.dart';
 import '../../models/event.dart';
 import '../notifications/notification_composer.dart';
 import '../notifications/sent_notifications_list.dart';
-
 
 class NotificationsTab extends StatelessWidget {
   final String businessName;
@@ -20,32 +15,65 @@ class NotificationsTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
+    return DefaultTabController(
+      length: 2, // two tabs
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            "Notifications",
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+            child: Text(
+              "Notifications",
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+            ),
           ),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 24),
+            child: Text(
+              "Send updates, promotions, or reminders to your users.",
+              style: TextStyle(color: Colors.grey),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Tab bar
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: TabBar(
+              labelColor: Theme.of(context).primaryColor,
+              unselectedLabelColor: Colors.grey,
+              indicatorColor: Theme.of(context).primaryColor,
+              tabs: const [
+                Tab(text: "Composer"),
+                Tab(text: "Sent"),
+              ],
+            ),
+          ),
+
           const SizedBox(height: 8),
-          const Text(
-            "Send updates, promotions, or reminders to your users.",
-            style: TextStyle(color: Colors.grey),
-          ),
-          const SizedBox(height: 24),
 
-          NotificationComposer(
-            businessName: businessName,
-            events: events,
-          ),
+          // Tab views
+          Expanded(
+            child: TabBarView(
+              children: [
+                // Composer tab
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: NotificationComposer(
+                    businessName: businessName,
+                    events: events,
+                  ),
+                ),
 
-          const SizedBox(height: 32),
-
-          SentNotificationsList(
-            businessName: businessName,
-            events: events,
+                // Sent notifications tab
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: SentNotificationsList(
+                    businessName: businessName,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),

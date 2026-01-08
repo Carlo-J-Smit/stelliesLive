@@ -35,6 +35,13 @@ import 'widgets/event_card.dart';
 const String locationTask = "pingUserLocation";
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
+final List<String> _notificationTypes = [
+  'Update',
+  'Promotion',
+  'Reminder',
+  'Cancellation',
+];
+
 
 FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
 FlutterLocalNotificationsPlugin();
@@ -235,14 +242,40 @@ class _MyAppState extends State<MyApp> {
       WebLocationPinger.start();
     }
 
+    _setupFCMListeners();
 
-    // Request permissions AFTER first frame
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await _requestPermissionsOnLaunch();
-      await _subscribeToBusinessTopic();
+
+      // Fetch businesses + initialize subscriptions even if settings page not opened
+      final prefs = await SharedPreferences.getInstance();
+      final businessesSnapshot = await FirebaseFirestore.instance.collection('businesses').get();
+      final businesses = businessesSnapshot.docs.map((doc) => {
+        'id': doc.id,
+        'name': doc.data()['name'] as String? ?? 'Unnamed',
+      }).toList();
+
+      for (var b in businesses) {
+        final id = b['id']!;
+        for (var type in _notificationTypes) {
+          final key = 'notify_${id}_${type.toLowerCase()}';
+          final enabled = prefs.containsKey(key) ? prefs.getBool(key)! : true;
+          final topic = 'business_${id}_${type.toLowerCase()}';
+
+          if (enabled && !kIsWeb) {
+            await FirebaseMessaging.instance.subscribeToTopic(topic);
+          }
+          await prefs.setBool(key, enabled);
+        }
+      }
+
+      // Mark first install
+      if (!prefs.containsKey('app_installed')) {
+        await prefs.setBool('app_installed', true);
+      }
     });
 
-    _setupFCMListeners();
+
   }
 
   void _setupFCMListeners() {
@@ -273,27 +306,27 @@ class _MyAppState extends State<MyApp> {
   }
 
 
-  Future<void> _subscribeToBusinessTopic() async {
-    // You already know the business name in your app
-    if (kIsWeb) return;
-    const businessName = 'stellieslive'; // or load dynamically if needed
+  // Future<void> _subscribeToBusinessTopic() async {
+  //   // You already know the business name in your app
+  //   if (kIsWeb) return;
+  //   const businessName = 'stellieslive'; // or load dynamically if needed
+  //
+  //   await FirebaseMessaging.instance.subscribeToTopic(
+  //     'business_$businessName',
+  //   );
+  //
+  //   debugPrint('Subscribed to business_$businessName');
+  // }
 
-    await FirebaseMessaging.instance.subscribeToTopic(
-      'business_$businessName',
-    );
-
-    debugPrint('Subscribed to business_$businessName');
-  }
-
-  Future<void> subscribeToEvent(Event event) async {
-    if (event.id == null) return;
-    if (kIsWeb) return;
-    await FirebaseMessaging.instance.subscribeToTopic(
-      'event_${event.id}',
-    );
-
-    debugPrint('Subscribed to event_${event.id}');
-  }
+  // Future<void> subscribeToEvent(Event event) async {
+  //   if (event.id == null) return;
+  //   if (kIsWeb) return;
+  //   await FirebaseMessaging.instance.subscribeToTopic(
+  //     'event_${event.id}',
+  //   );
+  //
+  //   debugPrint('Subscribed to event_${event.id}');
+  // }
 
 
   Future<void> _requestPermissionsOnLaunch() async {
