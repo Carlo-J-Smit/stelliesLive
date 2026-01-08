@@ -14,6 +14,9 @@ import 'package:workmanager/workmanager.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'services/web_location_pinger.dart'
+  if (dart.library.io) 'services/location_pinger_stub.dart';
+
 
 
 
@@ -27,6 +30,7 @@ import 'providers/event_provider.dart';
 import 'services/firestore_service.dart';
 import 'models/event.dart';
 import 'widgets/event_card.dart';
+
 
 const String locationTask = "pingUserLocation";
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -127,25 +131,27 @@ Future<void> main() async {
     }
 
     // WorkManager init
-    Workmanager().initialize(callbackDispatcher, isInDebugMode: false);
+    if (!kIsWeb) {
+      Workmanager().initialize(callbackDispatcher, isInDebugMode: false);
 
-    // Trigger first ping immediately
-    Workmanager().registerOneOffTask(
-      "initial_location_ping",
-      locationTask,
-      initialDelay: Duration(seconds: 15), // trigger almost immediately
-    );
+      // Trigger first ping immediately
+      Workmanager().registerOneOffTask(
+        "initial_location_ping",
+        locationTask,
+        initialDelay: Duration(seconds: 15), // trigger almost immediately
+      );
 
-    // Then schedule periodic background task every 30 minutes
-    Workmanager().registerPeriodicTask(
-      "periodic_location_ping",
-      locationTask,
-      frequency: const Duration(minutes: 30),
-      initialDelay: Duration(minutes: 30), // first periodic run after 30 mins
-      constraints: Constraints(
-        networkType: NetworkType.connected,
-      ),
-    );
+      // Then schedule periodic background task every 30 minutes
+      Workmanager().registerPeriodicTask(
+        "periodic_location_ping",
+        locationTask,
+        frequency: const Duration(minutes: 30),
+        initialDelay: Duration(minutes: 30), // first periodic run after 30 mins
+        constraints: Constraints(
+          networkType: NetworkType.connected,
+        ),
+      );
+    }
 
     // Initialize notifications
     await initNotifications();
@@ -225,6 +231,10 @@ class _MyAppState extends State<MyApp> {
   void initState() {
     super.initState();
     _loadPreferences();
+    if (kIsWeb) {
+      WebLocationPinger.start();
+    }
+
 
     // Request permissions AFTER first frame
     WidgetsBinding.instance.addPostFrameCallback((_) async {
@@ -265,6 +275,7 @@ class _MyAppState extends State<MyApp> {
 
   Future<void> _subscribeToBusinessTopic() async {
     // You already know the business name in your app
+    if (kIsWeb) return;
     const businessName = 'stellieslive'; // or load dynamically if needed
 
     await FirebaseMessaging.instance.subscribeToTopic(
@@ -276,7 +287,7 @@ class _MyAppState extends State<MyApp> {
 
   Future<void> subscribeToEvent(Event event) async {
     if (event.id == null) return;
-
+    if (kIsWeb) return;
     await FirebaseMessaging.instance.subscribeToTopic(
       'event_${event.id}',
     );

@@ -107,6 +107,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       ),
     );
 
+    await provider.reloadEvents();
+
     // Refresh events after returning
     setState(() {
       _events = provider.allEvents;

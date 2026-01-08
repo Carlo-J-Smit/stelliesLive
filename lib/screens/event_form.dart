@@ -18,6 +18,8 @@ import '../constants/colors.dart';
 import '../models/event.dart';
 import '../widgets/event_card.dart';
 import '../providers/event_provider.dart';
+import 'dart:typed_data';
+import 'package:image/image.dart' as img;
 
 enum MapStatus { loading, ready, error }
 
@@ -1000,6 +1002,20 @@ class _EventFormPageState extends State<EventFormPage> {
     );
   }
 
+  /// Compress image and keep good quality
+  Uint8List compressImageIsolate(Uint8List data) {
+    img.Image? image = img.decodeImage(data);
+    if (image == null) return data;
+
+    if (image.width > 1080) {
+      image = img.copyResize(image, width: 1080);
+    }
+
+    final compressed = img.encodeJpg(image, quality: 85);
+    return Uint8List.fromList(compressed);
+  }
+
+
   Future<void> _submitEvent() async {
     setState(() {
       _isSubmitting = true;
@@ -1214,16 +1230,28 @@ class _EventFormPageState extends State<EventFormPage> {
 
     UploadTask uploadTask;
 
+
     if (kIsWeb) {
-      final bytes = isIcon ? _pickedIconBytes! : _pickedBytes!;
+      // 🚫 NO COMPRESSION ON WEB
+      final rawBytes = isIcon ? _pickedIconBytes! : _pickedBytes!;
       uploadTask = ref.putData(
-        bytes,
-        SettableMetadata(contentType: 'image/png'),
+        rawBytes,
+        SettableMetadata(contentType: 'image/jpeg'),
       );
     } else {
+      // ✅ Compress ONLY on mobile
       final file = File(isIcon ? _pickedIcon!.path : _pickedImage!.path);
-      uploadTask = ref.putFile(file);
+      final rawBytes = await file.readAsBytes();
+
+      final compressedBytes =
+      await compute(compressImageIsolate, rawBytes);
+
+      uploadTask = ref.putData(
+        compressedBytes,
+        SettableMetadata(contentType: 'image/jpeg'),
+      );
     }
+
 
     setState(() {
       _uploadMessage = isIcon ? 'Uploading icon...' : 'Uploading image...';
