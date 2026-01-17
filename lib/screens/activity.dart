@@ -22,6 +22,8 @@ import 'dart:ui' as ui;
 import 'package:flutter/services.dart';
 import 'dart:math'; // for min/max
 import '../widgets/aggregated_event_icon.dart';
+import '../utils/settings_opener.dart';
+import '../screens/events_screen.dart';
 
 
 
@@ -908,24 +910,36 @@ class _ActivityScreenState extends State<ActivityScreen> {
   void _showDialog(String message, {bool showSettings = false}) {
     showDialog(
       context: context,
-      builder:
-          (_) => AlertDialog(
-            title: const Text('Location Required'),
-            content: Text(message),
-            actions: [
-              if (showSettings)
-                TextButton(
-                  onPressed: () => Geolocator.openAppSettings(),
-                  child: const Text('Open Settings'),
-                ),
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('OK'),
-              ),
-            ],
+      builder: (_) => AlertDialog(
+        title: const Text('Location Required'),
+        content: Text(message),
+        actions: [
+          if (showSettings)
+            TextButton(
+              onPressed: () async {
+                // Close the dialog first
+                Navigator.of(context).pop();
+                // Then open the relevant settings
+                await openRelevantSettings(context, AppSettingType.location);
+              },
+              child: const Text('Open Settings'),
+            ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (_) => const EventsScreen()),
+              );
+            },
+            child: const Text('OK'),
           ),
+
+        ],
+      ),
     );
   }
+
 
   void _subscribeToClusterUpdates() {
     FirebaseFirestore.instance.collection('merged_clusters').snapshots().listen(

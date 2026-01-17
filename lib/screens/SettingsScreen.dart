@@ -215,7 +215,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     await _checkLocationPermission();
 
     if (permission == LocationPermission.deniedForever && mounted) {
-      await openRelevantSettings(AppSettingType.location);
+      await openRelevantSettings(context, AppSettingType.location);
     }
   }
 
@@ -423,7 +423,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                   'Chrome: Settings → Privacy & Security → Notifications',
                             );
                           } else {
-                            await openRelevantSettings(AppSettingType.notifications);
+                            await openRelevantSettings(context, AppSettingType.notifications);
                           }
                         },
                         child: const Text('Open'),

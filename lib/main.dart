@@ -344,7 +344,7 @@ class _MyAppState extends State<MyApp> {
             TextButton(
               onPressed: () async {
                 // await Geolocator.openAppSettings();
-                await openRelevantSettings(AppSettingType.location);
+                await openRelevantSettings(context, AppSettingType.location);
                 Navigator.pop(context);
               },
               child: const Text('Open Settings'),
@@ -372,7 +372,7 @@ class _MyAppState extends State<MyApp> {
             TextButton(
               onPressed: () async {
                 // await openAppSettings();
-                await openRelevantSettings(AppSettingType.notifications);
+                await openRelevantSettings(context, AppSettingType.notifications);
                 Navigator.pop(context);
               },
               child: const Text('Open Settings'),
@@ -408,7 +408,7 @@ class _MyAppState extends State<MyApp> {
             TextButton(
               onPressed: () async {
                 //await Geolocator.openAppSettings();
-                await openRelevantSettings(AppSettingType.location);
+                await openRelevantSettings(context, AppSettingType.location);
                 Navigator.pop(context);
               },
               child: const Text('Open Settings'),
