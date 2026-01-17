@@ -173,10 +173,9 @@ class _ActivityScreenState extends State<ActivityScreen> {
       final List<Event> freshEvents = snapshot.docs.map((doc) {
         return Event.fromMap(doc.id, doc.data() as Map<String, dynamic>);
       }).where((event) {
-        // Only include events updated in the last 24h
-        return event.dateTime != null &&
-            now.difference(event.dateTime!).inHours <= 12;
+        return _isEventHappeningToday(event, now);
       }).toList();
+
 
 
       // Update widget.events
@@ -382,6 +381,33 @@ class _ActivityScreenState extends State<ActivityScreen> {
       debugPrint("❌ Failed to send feedback notification: $e");
     }
   }
+
+  bool _isSameDay(DateTime a, DateTime b) {
+    return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
+
+  bool _isEventHappeningToday(Event event, DateTime now) {
+    // Exact date event
+    if (event.dateTime != null) {
+      if (_isSameDay(event.dateTime!, now)) {
+        return true;
+      }
+    }
+
+    // Recurring event (by weekday)
+    // Assumes event.recurringDays = ['Monday', 'Wednesday', ...]
+    if (event.dayOfWeek != null && event.dayOfWeek!.isNotEmpty) {
+      final todayName = [
+        'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'
+      ][now.weekday - 1];
+
+      return event.dayOfWeek == todayName;
+    }
+
+
+    return false;
+  }
+
 
   Future<void> _checkProximityToEvent() async {
     try {
