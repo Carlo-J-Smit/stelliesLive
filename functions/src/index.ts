@@ -63,170 +63,84 @@ export const handleLocationLog = onDocumentCreated(
     memory: "256MiB", // Fast enough, no cold start spike
     cpu: 1,
   },
-  async (event) => {
+    async (event) => {
+    const now = Date.now();
+    const cutoff = Timestamp.fromMillis(now - 30 * 60 * 1000); // last 30 mins
 
-  const now = Date.now();
-  const cutoff = Timestamp.fromMillis(now - 30 * 60 * 1000);
+    // 1️⃣ Fetch recent location logs
+    const logSnap = await db
+      .collection("location_logs")
+      .where("timestamp", ">=", cutoff)
+      .get();
 
-  /* ────────────────────────────────────────────────
-   * 1️⃣ Fetch recent location logs
-   * ──────────────────────────────────────────────── */
-  const logSnap = await db
-    .collection("location_logs")
-    .where("timestamp", ">=", cutoff)
-    .get();
+    const logs = logSnap.docs
+      .map(d => d.data())
+      .filter(l => typeof l.lat === "number" && typeof l.lng === "number");
 
+    if (!logs.length) return;
 
-  const logs = logSnap.docs
-    .map(d => d.data())
-    .filter(l =>
-      typeof l.lat === "number" &&
-      typeof l.lng === "number"
-    );
+    // 2️⃣ Fetch recent feedback
+    const feedbackSnap = await db
+      .collection("event_feedback")
+      .where("timestamp", ">=", cutoff)
+      .get();
 
-
-  if (!logs.length) {
-    return;
-  }
-
-  /* ────────────────────────────────────────────────
-   * 2️⃣ Cluster logs
-   * ──────────────────────────────────────────────── */
-  const clusters: { lat: number; lng: number; count: number }[] = [];
-
-  logs.forEach(log => {
-    let assigned = false;
-
-    for (const cluster of clusters) {
-      if (
-        distance(log.lat, log.lng, cluster.lat, cluster.lng) <
-        GROUP_RADIUS_METERS
-      ) {
-        cluster.lat =
-          (cluster.lat * cluster.count + log.lat) / (cluster.count + 1);
-        cluster.lng =
-          (cluster.lng * cluster.count + log.lng) / (cluster.count + 1);
-        cluster.count++;
-        assigned = true;
-        break;
-      }
-    }
-
-    if (!assigned) {
-      clusters.push({ lat: log.lat, lng: log.lng, count: 1 });
-    }
-  });
-
-
-  /* ────────────────────────────────────────────────
-   * 3️⃣ Fetch recent feedback
-   * ──────────────────────────────────────────────── */
-  const feedbackSnap = await db
-    .collection("event_feedback")
-    .where("timestamp", ">=", cutoff)
-    .get();
-
-
-
-  const feedbackByEvent = new Map<string, number[]>();
-
-  feedbackSnap.docs.forEach(doc => {
-    const f = doc.data();
-
-    if (!f.eventId || !f.busyness) {
-      return;
-    }
-
-    const score = busynessToScore(f.busyness);
-
-    if (!feedbackByEvent.has(f.eventId)) {
-      feedbackByEvent.set(f.eventId, []);
-    }
-    feedbackByEvent.get(f.eventId)!.push(score);
-  });
-
-
-  /* ────────────────────────────────────────────────
-   * 4️⃣ Fetch ALL events near clusters
-   * ──────────────────────────────────────────────── */
-  const eventSnap = await db.collection("events").get();
-
-  const batch = db.batch();
-  let updatedCount = 0;
-
-  /* ────────────────────────────────────────────────
-   * 5️⃣ Compute busyness per event
-   * ──────────────────────────────────────────────── */
-  for (const snap of eventSnap.docs) {
-    const eventData = snap.data();
-    
-    const lat = eventData?.location?.lat;
-    const lng = eventData?.location?.lng;
-
-     if (typeof lat !== "number" || typeof lng !== "number") {
-    continue;
-  }
-  
-
-    let nearest: any = null;
-    let minDist = Infinity;
-
-    for (const cluster of clusters) {
-      const d = distance(lat, lng, cluster.lat, cluster.lng);
-      if (d < minDist) {
-        minDist = d;
-        nearest = cluster;
-      }
-    }
-
-    if (!nearest) continue;
-
-    const locationScore =
-      nearest.count < 3 ? 0 :
-      nearest.count < 6 ? 1 : 1.75;
-
-    const feedbackScores = feedbackByEvent.get(snap.id) || [];
-
-    // Bayesian-smoothed feedback score
-    const feedbackScore =
-      feedbackScores.length
-        ? bayesianBusyness(feedbackScores)
-        : locationScore;
-
-    // Dynamic location weighting
-    const locationConfidence = Math.min(
-      nearest.count / LOCATION_CONFIDENCE_SATURATION,
-      1
-    );
-    const locationWeight = 0.5 * locationConfidence;
-    const feedbackWeight = 1 - locationWeight;
-
-    // Normalize scores to [0,1]
-    const normalizedLocationScore = locationScore / 2;
-    const normalizedFeedbackScore = feedbackScore / 2;
-
-    // Weighted final score
-    const weighted = locationWeight * normalizedLocationScore + feedbackWeight * normalizedFeedbackScore;
-
-    // Determine final busyness level
-    const finalLevel =
-      weighted >= 0.6 ? "Busy" :
-      weighted >= 0.3 ? "Moderate" :
-      "Quiet";
-
-    batch.update(snap.ref, {
-      busynessLevel: finalLevel,
-      busynessUpdatedAt: Timestamp.now(),
+    const feedbackByEvent = new Map<string, number[]>();
+    feedbackSnap.docs.forEach(doc => {
+      const f = doc.data();
+      if (!f.eventId || !f.busyness) return;
+      const score = busynessToScore(f.busyness);
+      if (!feedbackByEvent.has(f.eventId)) feedbackByEvent.set(f.eventId, []);
+      feedbackByEvent.get(f.eventId)!.push(score);
     });
 
-    updatedCount++;
-  }
+    // 3️⃣ Fetch all events
+    const eventSnap = await db.collection("events").get();
+    const batch = db.batch();
+    let updatedCount = 0;
 
-  if (!updatedCount) {
-  } else {
-    await batch.commit();
+    for (const snap of eventSnap.docs) {
+      const eventData = snap.data();
+      const lat = eventData?.location?.lat;
+      const lng = eventData?.location?.lng;
+      if (typeof lat !== "number" || typeof lng !== "number") continue;
+
+      // 4️⃣ Count location logs near this event
+      const nearbyLogs = logs.filter(l => distance(lat, lng, l.lat, l.lng) <= GROUP_RADIUS_METERS);
+      const locationScore =
+        nearbyLogs.length < 3 ? 0 :
+        nearbyLogs.length < 6 ? 1 : 1.75;
+
+      // 5️⃣ Feedback score (bayesian smoothing)
+      const feedbackScores = feedbackByEvent.get(snap.id) || [];
+      const feedbackScore =
+        feedbackScores.length ? bayesianBusyness(feedbackScores) : 0;
+
+      // 6️⃣ Weighted final busyness (trust feedback > faraway logs)
+      const locationConfidence = Math.min(nearbyLogs.length / LOCATION_CONFIDENCE_SATURATION, 1);
+      const locationWeight = 0.3 * locationConfidence; // reduced weight
+      const feedbackWeight = 1 - locationWeight;
+
+      const normalizedLocationScore = locationScore / 2;
+      const normalizedFeedbackScore = feedbackScore / 2;
+      const weighted = locationWeight * normalizedLocationScore + feedbackWeight * normalizedFeedbackScore;
+
+      // 7️⃣ Determine busyness level
+      const finalLevel =
+        weighted >= 0.6 ? "Busy" :
+        weighted >= 0.3 ? "Moderate" :
+        "Quiet";
+
+      batch.update(snap.ref, {
+        busynessLevel: finalLevel,
+        busynessUpdatedAt: Timestamp.now(),
+      });
+
+      updatedCount++;
+    }
+
+    if (updatedCount) await batch.commit();
   }
-}
 );
 
 
@@ -269,7 +183,6 @@ export const cleanUpOldEvents = onDocumentUpdated(
 
         // Delete Firestore document
         await doc.ref.delete();
-        console.log(`Deleted old event ${eventId}`);
       } catch (err) {
         console.error(`Failed to delete old event ${eventId}`, err);
       }

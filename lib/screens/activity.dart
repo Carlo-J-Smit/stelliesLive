@@ -21,6 +21,7 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:flutter/services.dart';
 import 'dart:math'; // for min/max
+import '../widgets/aggregated_event_icon.dart';
 
 
 
@@ -154,61 +155,210 @@ class _ActivityScreenState extends State<ActivityScreen> {
     }
   }
 
+  double _currentZoom = 15; // default zoom
+
+  void _onCameraMove(CameraPosition position) {
+    _currentZoom = position.zoom;
+    // Optionally, throttle updates to avoid constant rebuilds
+    _updateEventMarkers();
+  }
 
 
+
+  // Inside _ActivityScreenState
 
   Future<void> _updateEventMarkers() async {
     try {
       if (DateTime.now().difference(_lastReload).inSeconds < 5) return;
       _lastReload = DateTime.now();
-
       final now = DateTime.now();
 
       final snapshot = await FirebaseFirestore.instance.collection('events').get();
-
-      // final List<Event> freshEvents = snapshot.docs.map((doc) {
-      //   return Event.fromMap(doc.id, doc.data() as Map<String, dynamic>);
-      // }).toList();
-
       final List<Event> freshEvents = snapshot.docs.map((doc) {
         return Event.fromMap(doc.id, doc.data() as Map<String, dynamic>);
-      }).where((event) {
-        return _isEventHappeningToday(event, now);
-      }).toList();
+      }).where((event) => _isEventHappeningToday(event, now)).toList();
 
+      widget.events..clear()..addAll(freshEvents);
 
+      // Determine clustering precision based on zoom
+      int precisionInt;
+      debugPrint("current zoom level: $_currentZoom");
+      if (_currentZoom <= 12) {
+        precisionInt = 2; // ~100m
+      } else if (_currentZoom <= 15) {
+        precisionInt = 3; // ~50m
+      } else {
+        precisionInt = 4; // ~10m (high zoom)
+      }
 
-      // Update widget.events
-      widget.events
-        ..clear()
-        ..addAll(freshEvents);
+      // Group events by approximate lat/lng based on precision
+      Map<String, List<Event>> groupedEvents = {};
+      for (var event in freshEvents) {
+        String key =
+            "${event.lat!.toStringAsFixed(precisionInt)}_${event.lng!.toStringAsFixed(precisionInt)}";
+        groupedEvents.putIfAbsent(key, () => []).add(event);
+      }
 
-      // Step 1: Show default markers immediately
-      Set<Marker> defaultMarkers = {};
-      for (var event in widget.events) {
-        defaultMarkers.add(
-          Marker(
-            markerId: MarkerId(event.id),
-            position: LatLng(event.lat!, event.lng!),
-            icon: BitmapDescriptor.defaultMarker,
-            infoWindow: InfoWindow.noText,
-            onTap: () => _showEventDialog(event),
-          ),
-        );
+      Set<Marker> newMarkers = {};
+      for (var key in groupedEvents.keys) {
+        final cluster = groupedEvents[key]!;
+        final firstEvent = cluster.first;
+
+        if (cluster.length == 1) {
+          // Single Event Marker
+          newMarkers.add(Marker(
+            markerId: MarkerId(firstEvent.id),
+            position: LatLng(firstEvent.lat!, firstEvent.lng!),
+            icon: BitmapDescriptor.defaultMarker, // Will be updated by custom loader
+            onTap: () => _showEventDialog(firstEvent),
+          ));
+          _loadCustomMarker(firstEvent); // Async load custom icon
+        } else {
+          // Aggregated Marker (cluster)
+          final clusterIcon = await createAggregatedMarkerIcon(
+            count: cluster.length,
+            isDarkMode: _isDarkMap,
+            size: 50, // higher resolution for map clarity
+          );
+
+          newMarkers.add(Marker(
+            markerId: MarkerId("cluster_$key"),
+            position: LatLng(firstEvent.lat!, firstEvent.lng!),
+            icon: clusterIcon,
+            onTap: () => _showAggregatedEventsPopup(cluster),
+          ));
+        }
       }
 
       setState(() {
-        _eventMarkers = defaultMarkers;
+        _eventMarkers = newMarkers;
       });
-
-      // Step 2: Load custom icons asynchronously
-      for (var event in widget.events) {
-        _loadCustomMarker(event);
-      }
     } catch (e) {
       debugPrint("❌ Failed to reload events: $e");
     }
   }
+
+  void _showAggregatedEventsPopup(List<Event> events) {
+    showGeneralDialog(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: "Dismiss",
+      barrierColor: AppColors.darkInteract.withOpacity(0.5), // Subtle background dim
+      transitionDuration: const Duration(milliseconds: 250),
+      transitionBuilder: (context, anim1, anim2, child) {
+        return FadeTransition(
+          opacity: CurvedAnimation(parent: anim1, curve: Curves.easeOut),
+          child: ScaleTransition(
+            scale: CurvedAnimation(parent: anim1, curve: Curves.easeOutBack),
+            child: child,
+          ),
+        );
+      },
+      pageBuilder: (context, anim1, anim2) {
+        return Center(
+          child: Container(
+            width: MediaQuery.of(context).size.width * 0.9,
+            height: MediaQuery.of(context).size.height * 0.7,
+            decoration: BoxDecoration(
+              color: _isDarkMap ? AppColors.eventCardBackground : AppColors.eventCardBackground,
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.darkInteract.withOpacity(0.3),
+                  blurRadius: 20,
+                  offset: const Offset(0, 10),
+                ),
+              ],
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: Column(
+              children: [
+                // Header
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
+                  decoration: BoxDecoration(
+                    color: _isDarkMap ? AppColors.eventCardBackground : AppColors.eventCardBackground,
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(24),
+                      topRight: Radius.circular(24),
+                    ),
+                  ),
+                  child: Text(
+                    "${events.length} Events at this Location",
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: _isDarkMap ? AppColors.primaryRed : AppColors.primaryRed,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+
+                // Event list
+                Expanded(
+                  child: ListView.separated(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: events.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 12),
+                    itemBuilder: (context, index) {
+                      final e = events[index];
+                      return GestureDetector(
+                        onTap: () {
+                          Navigator.pop(context);
+                          _showEventDialog(e);
+                        },
+                        child: Material(
+                          color: _isDarkMap ? AppColors.eventCardBackground : AppColors.eventCardBackground,
+                          borderRadius: BorderRadius.circular(16),
+                          elevation: 2,
+                          child: Padding(
+                            padding: const EdgeInsets.all(12),
+                            child: AbsorbPointer(
+                              absorbing: true,
+                              child: EventCard(event: e),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+
+                // Close button
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  child: SizedBox(
+                    width: MediaQuery.of(context).size.width * 0.5,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _isDarkMap ? AppColors.primaryRed : AppColors.primaryRed,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      onPressed: () => Navigator.pop(context),
+                      child: Text(
+                        "Close",
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: _isDarkMap ? AppColors.textLight : AppColors.textLight,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+
 
 
   Future<BitmapDescriptor> getEventMarkerIcon(Event event) async {
@@ -916,7 +1066,7 @@ class _ActivityScreenState extends State<ActivityScreen> {
                               _userPosition!.latitude,
                               _userPosition!.longitude,
                             ),
-                            zoom: 14,
+                            zoom: _currentZoom,
                           ),
                           markers: _eventMarkers,
                           circles: _showHeatmap ? _popularityCircles : {},
@@ -946,6 +1096,7 @@ class _ActivityScreenState extends State<ActivityScreen> {
                               _selectedEventPosition = null;
                             });
                           },
+                          onCameraMove: _onCameraMove,
                           onTap: (_) {
                             setState(() {
                               _selectedEvent = null;
