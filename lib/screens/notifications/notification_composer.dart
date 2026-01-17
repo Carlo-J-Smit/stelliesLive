@@ -104,108 +104,125 @@ class _NotificationComposerState extends State<NotificationComposer> {
   Widget build(BuildContext context) {
     return Card(
       elevation: 2,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            // Notification type
-            DropdownButtonFormField<String>(
-              value: _type,
-              hint: const Text("Notification type"),
-              items: _types.map((t) {
-                return DropdownMenuItem(
-                  value: t,
-                  child: Row(
-                    children: [
-                      Icon(_icons[t], color: AppColors.primaryRed),
-                      const SizedBox(width: 8),
-                      Text(t),
-                    ],
-                  ),
-                );
-              }).toList(),
-              onChanged: (v) {
-                setState(() {
-                  _type = v;
-                  _applyTemplate();
-                });
-              },
-            ),
-            const SizedBox(height: 12),
-
-            // Event selector (purely template helper)
-            DropdownButtonFormField<Event>(
-              value: _event,
-              hint: const Text("Autofill from event (optional)"),
-              items: widget.events.map((e) {
-                return DropdownMenuItem(
-                  value: e,
-                  child: Text(e.title ?? "Untitled"),
-                );
-              }).toList(),
-              onChanged: (v) {
-                setState(() {
-                  _event = v;
-                  _applyTemplate();
-                });
-              },
-            ),
-            const SizedBox(height: 12),
-
-            // Title
-            TextField(
-              controller: _title,
-              decoration: const InputDecoration(
-                labelText: "Title",
-                border: OutlineInputBorder(),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                minHeight: constraints.maxHeight,
               ),
-              onChanged: (_) => setState(() {}),
-            ),
-            const SizedBox(height: 12),
+              child: IntrinsicHeight(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
 
-            // Message
-            TextField(
-              controller: _message,
-              maxLines: 4,
-              maxLength: 240,
-              decoration: const InputDecoration(
-                labelText: "Message",
-                border: OutlineInputBorder(),
+                    // Notification type
+                    DropdownButtonFormField<String>(
+                      value: _type,
+                      hint: const Text("Notification type"),
+                      items: _types.map((t) {
+                        return DropdownMenuItem(
+                          value: t,
+                          child: Row(
+                            children: [
+                              Icon(_icons[t], color: AppColors.primaryRed),
+                              const SizedBox(width: 8),
+                              Text(t),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                      onChanged: (v) {
+                        setState(() {
+                          _type = v;
+                          _applyTemplate();
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Event selector (purely template helper)
+                    DropdownButtonFormField<Event>(
+                      value: _event,
+                      hint: const Text("Autofill from event (optional)"),
+                      items: widget.events.map((e) {
+                        return DropdownMenuItem(
+                          value: e,
+                          child: Text(e.title ?? "Untitled"),
+                        );
+                      }).toList(),
+                      onChanged: (v) {
+                        setState(() {
+                          _event = v;
+                          _applyTemplate();
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Title
+                    TextField(
+                      controller: _title,
+                      decoration: const InputDecoration(
+                        labelText: "Title",
+                        border: OutlineInputBorder(),
+                      ),
+                      onChanged: (_) => setState(() {}),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Message
+                    TextField(
+                      controller: _message,
+                      maxLines: 4,
+                      maxLength: 240,
+                      decoration: const InputDecoration(
+                        labelText: "Message",
+                        border: OutlineInputBorder(),
+                      ),
+                      onChanged: (_) => setState(() {}),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    /// Preview
+                    ListTile(
+                      leading: Icon(
+                        _icons[_type] ?? Icons.notifications,
+                        color: AppColors.primaryRed,
+                      ),
+                      title: Text(
+                          _title.text.isEmpty ? "Preview title" : _title.text),
+                      subtitle: Text(
+                          _message.text.isEmpty ? "Preview message" : _message
+                              .text),
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    ElevatedButton.icon(
+                      icon: _sending
+                          ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                          : const Icon(Icons.send),
+                      label: const Text("Send"),
+                      onPressed: _canSend ? _send : null,
+                      style: ElevatedButton.styleFrom(
+                        minimumSize: const Size(double.infinity, 48),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              onChanged: (_) => setState(() {}),
             ),
-
-            const SizedBox(height: 16),
-
-            /// Preview
-            ListTile(
-              leading: Icon(
-                _icons[_type] ?? Icons.notifications,
-                color: AppColors.primaryRed,
-              ),
-              title: Text(_title.text.isEmpty ? "Preview title" : _title.text),
-              subtitle: Text(_message.text.isEmpty ? "Preview message" : _message.text),
-            ),
-
-            const SizedBox(height: 12),
-
-            ElevatedButton.icon(
-              icon: _sending
-                  ? const SizedBox(
-                width: 16,
-                height: 16,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
-                  : const Icon(Icons.send),
-              label: const Text("Send"),
-              onPressed: _canSend ? _send : null,
-              style: ElevatedButton.styleFrom(
-                minimumSize: const Size(double.infinity, 48),
-              ),
-            ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
 }
+
