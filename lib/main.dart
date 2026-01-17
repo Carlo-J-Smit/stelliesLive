@@ -16,6 +16,7 @@ import 'package:provider/provider.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'services/web_location_pinger.dart'
   if (dart.library.io) 'services/location_pinger_stub.dart';
+import 'utils/settings_opener.dart';
 
 
 
@@ -342,7 +343,8 @@ class _MyAppState extends State<MyApp> {
           actions: [
             TextButton(
               onPressed: () async {
-                await Geolocator.openAppSettings();
+                // await Geolocator.openAppSettings();
+                await openRelevantSettings(AppSettingType.location);
                 Navigator.pop(context);
               },
               child: const Text('Open Settings'),
@@ -369,7 +371,8 @@ class _MyAppState extends State<MyApp> {
           actions: [
             TextButton(
               onPressed: () async {
-                await openAppSettings();
+                // await openAppSettings();
+                await openRelevantSettings(AppSettingType.notifications);
                 Navigator.pop(context);
               },
               child: const Text('Open Settings'),
@@ -404,7 +407,8 @@ class _MyAppState extends State<MyApp> {
           actions: [
             TextButton(
               onPressed: () async {
-                await Geolocator.openAppSettings();
+                //await Geolocator.openAppSettings();
+                await openRelevantSettings(AppSettingType.location);
                 Navigator.pop(context);
               },
               child: const Text('Open Settings'),

@@ -5,6 +5,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import '../utils/settings_opener.dart';
 
 final List<String> _notificationTypes = [
   'Update',
@@ -200,29 +201,44 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   /// Request location permission
   Future<void> _requestLocationPermission() async {
-    LocationPermission permission = await Geolocator.requestPermission();
+    if (kIsWeb) {
+      _showWebHelpDialog(
+        title: 'Enable Location',
+        message:
+        'Please enable location permissions in your browser settings.\n\n'
+            'Chrome: Settings → Privacy & Security → Site Settings → Location',
+      );
+      return;
+    }
+
+    final permission = await Geolocator.requestPermission();
     await _checkLocationPermission();
 
     if (permission == LocationPermission.deniedForever && mounted) {
-      showDialog(
-        context: context,
-        builder: (_) => AlertDialog(
-          title: const Text('Location Permanently Denied'),
-          content: const Text(
-              'To enable location services, go to app settings.'),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Geolocator.openAppSettings();
-                Navigator.pop(context);
-              },
-              child: const Text('Open Settings'),
-            ),
-          ],
-        ),
-      );
+      await openRelevantSettings(AppSettingType.location);
     }
   }
+
+  void _showWebHelpDialog({
+    required String title,
+    required String message,
+  }) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text(title),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+
 
   /// Toggle global proximity notifications
   Future<void> _toggleNotifications(bool value) async {
@@ -392,6 +408,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       value: _notifyProximity,
                       onChanged: _toggleNotifications,
                     ),
+
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('System Notification Settings'),
+                      subtitle: const Text('Manage notification permissions'),
+                      trailing: ElevatedButton(
+                        onPressed: () async {
+                          if (kIsWeb) {
+                            _showWebHelpDialog(
+                              title: 'Enable Notifications',
+                              message:
+                              'Please enable notifications in your browser settings.\n\n'
+                                  'Chrome: Settings → Privacy & Security → Notifications',
+                            );
+                          } else {
+                            await openRelevantSettings(AppSettingType.notifications);
+                          }
+                        },
+                        child: const Text('Open'),
+                      ),
+                    ),
+
                   ],
                 ),
               ),
