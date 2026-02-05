@@ -328,18 +328,90 @@ class _MyAppState extends State<MyApp> {
   //
   //   debugPrint('Subscribed to event_${event.id}');
   // }
+  Future<bool> requestBackgroundLocationWithDialog(BuildContext context) async {
+    LocationPermission permission = await Geolocator.checkPermission();
+
+    // If permission is already granted
+    if (permission == LocationPermission.always) return true;
+
+    // Show a dialog explaining why we need background location
+    bool granted = false;
+    await showDialog(
+      context: context,
+      barrierDismissible: false, // user must choose
+      builder: (ctx) => AlertDialog(
+        title: const Text('Background Location Required'),
+        content: const Text(
+            'To provide accurate event notifications based on your location, '
+                'the app needs permission to access your location even when the app '
+                'is closed or not in use.'),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              // Open app settings so user can enable "Always allow"
+              await Geolocator.openAppSettings();
+              Navigator.of(ctx).pop();
+            },
+            child: const Text('Open Settings'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+            },
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
+    );
+
+    // Recheck permission after user possibly updated it
+    permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.always) {
+      granted = true;
+    }
+
+    return granted;
+  }
+
+
+  Future<bool> requestBackgroundLocation() async {
+    if (!await Geolocator.isLocationServiceEnabled()) {
+      return false;
+    }
+
+    LocationPermission permission = await Geolocator.checkPermission();
+
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      return false;
+    }
+
+    bool locationGranted = await requestBackgroundLocationWithDialog(context);
+    if (!locationGranted) {
+      debugPrint('Background location not granted — some features may be limited');
+      return false;
+    }
+
+    return true;
+  }
 
 
   Future<void> _requestPermissionsOnLaunch() async {
     // --- Location permission ---
-    bool locationGranted = await ensureLocationPermission();
+    bool locationGranted = await requestBackgroundLocation();
+    // bool locationGranted = await ensureLocationPermission();
     if (!locationGranted && mounted) {
       showDialog(
         context: context,
         builder: (_) => AlertDialog(
           title: const Text('Location Required'),
           content: const Text(
-              'Enable location to allow background event notifications.'),
+              'To provide accurate event notifications based on your location, '
+                  'the app needs permission to access your location even when the app '
+                  'is closed or not in use.'),
           actions: [
             TextButton(
               onPressed: () async {
@@ -353,6 +425,9 @@ class _MyAppState extends State<MyApp> {
         ),
       );
     }
+
+
+
 
     // --- Notification permission ---
     FirebaseMessaging messaging = FirebaseMessaging.instance;

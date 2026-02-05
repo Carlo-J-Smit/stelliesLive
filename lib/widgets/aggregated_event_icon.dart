@@ -13,7 +13,7 @@ class AggregatedEventIcon extends StatelessWidget {
     Key? key,
     required this.count,
     this.isDarkMode = false,
-    this.size = 50, // default diameter
+    this.size = 80, // default diameter
   }) : super(key: key);
 
   @override
@@ -69,7 +69,7 @@ class AggregatedEventIcon extends StatelessWidget {
 Future<BitmapDescriptor> createAggregatedMarkerIcon({
   required int count,
   bool isDarkMode = false,
-  double size = 120, // Higher size = better resolution
+  double size = 200, // Higher size = better resolution
 }) async {
   final recorder = ui.PictureRecorder();
   final canvas = Canvas(recorder);

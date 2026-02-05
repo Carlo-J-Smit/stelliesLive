@@ -43,6 +43,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 
     // Access events from provider
     final provider = Provider.of<EventProvider>(context, listen: false);
+    provider.reloadEvents();
     _events = provider.allEvents;
 
     // Initialize filteredEvents

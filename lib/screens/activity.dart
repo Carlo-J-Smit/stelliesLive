@@ -291,7 +291,8 @@ class _ActivityScreenState extends State<ActivityScreen> {
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
-                      color: _isDarkMap ? AppColors.primaryRed : AppColors.primaryRed,
+                      color: AppColors.primaryRed,
+                      decoration: TextDecoration.none,
                     ),
                     textAlign: TextAlign.center,
                   ),
