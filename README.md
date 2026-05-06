@@ -1,15 +1,27 @@
 # StelliesLive
 
-**StelliesLive** is an open-source project aimed at making it easy to discover and keep up with events in and around Stellenbosch. It consists of a Flutter-based mobile and web app, backed by Firebase for real-time updates, notifications, and storage.
-
-This project is open for contributions as long as it remains non-commercial. I make no claims that this is perfect code — it's a work in progress, and any improvements or insights are welcome.
+**StelliesLive** is an project aimed exploring using LLM's to code a app aimed at making it easy to discover and keep up with events in and around Stellenbosch. It consists of a Flutter-based mobile and web app, backed by Firebase for real-time updates, notifications, and storage.
 
 ---
 
+## Findings
+ChatGPT, Gemnini and Claude was used during developement. The free version of all these agents was used.
+
+While the LLM's preformed quite well in the early stages, the larger the project grew, the more they struggled to keep the entire project in scope and started breaking things more than helping and expanding the scope.
+
+The experiment as an whole was insitfull into the current state of LLMs (as of december 2025). While I would not continue to use LLMs as the backbone of my coding, seeing as it caused to much friction and time wasted trying to wrangle the LLM into the right direction. I was very helpfull wit UI/UX since as of writing this, I have had minimal experiance in UI/UX.
+
+I got it to a stage where it was releasable (as a student project, not professionaly) and went through the procedures of deployinig the app on the playstore and hosting the website version.
+
+I ultimately decided to terminate this hobby project seeing as I moved outside the cover of the free tier for Firebase, and I am not prepared to spend money on this experiment at this stage.
+As off March 2026, the firebase account has been deactivated and therefore most features will not work until it has been reactivated. As a result, it has been made private on the playstore.
+
+---
 ## Features
 
 * Browse local events with filtering by category, date, and location.
 * Real-time updates on event changes.
+* Real-time Map overlay on Google Maps showcasing events
 * Individual event pages with images, descriptions, and status.
 * Minimal offline support for cached events.
 * Push notifications, with subscription toggles for different event types.
@@ -62,40 +74,3 @@ flutter run
 * **Image Storage:** Firebase Storage
 
 ---
-
-## Contributing
-
-* Fork, branch, and PR as usual.
-* Keep in mind non-commercial usage.
-* No need to be formal — if you see a way to make things cleaner, do it.
-
----
-
-## License
-
-**Creative Commons Attribution-NonCommercial 4.0 International (CC BY-NC 4.0)**
-
-* Use, share, adapt **non-commercially**.
-* Credit must be given.
-* [License link](https://creativecommons.org/licenses/by-nc/4.0/)
-
-```
-Creative Commons Attribution-NonCommercial 4.0 International (CC BY-NC 4.0)
-Copyright (c) 2026 Carlo Smit
-
-You are free to:
-- Share — copy and redistribute the material in any medium or format
-- Adapt — remix, transform, and build upon the material
-
-Under the following terms:
-- Attribution — Give appropriate credit, provide a link to the license, and indicate changes.
-- NonCommercial — No commercial use.
-```
-
----
-
-## Contact
-
-Carlo Smit – [Email] – [GitHub/LinkedIn]
-Repo: [https://github.com/yourusername/StelliesLive](https://github.com/yourusername/StelliesLive)
-
